@@ -6,7 +6,11 @@ Where Is My Tab
 
 ## Category
 
-Productivity
+Functionality & UI
+
+## Privacy Policy
+
+https://ialaddin.github.io/where-is-my-tab/privacy.html
 
 ## Summary
 

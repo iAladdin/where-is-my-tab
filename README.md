@@ -1,5 +1,7 @@
 # Where Is My Tab
 
+[Privacy policy](https://ialaddin.github.io/where-is-my-tab/privacy.html)
+
 `Where Is My Tab` is a Manifest V3 Chrome extension that replaces the default new tab page with a focused tab finder. It is built for one job: find tabs that already exist in the current Chrome profile, group them by exact hostname, and switch back to them fast instead of opening duplicates. The current UI pass uses a premium glass-and-ivory visual system derived from the extension icon so the new tab page, packaged icons, and Chrome Web Store promo assets all share the same visual language.
 
 ## What This Version Does

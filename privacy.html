@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Privacy policy for the Where Is My Tab Chrome extension.">
+    <title>Privacy Policy — Where Is My Tab</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #f3f7f5;
+        --surface: #ffffff;
+        --text: #183742;
+        --muted: #5f7681;
+        --accent: #167b72;
+        --border: #d8e5e2;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #0d1821;
+          --surface: #13232d;
+          --text: #eef7fb;
+          --muted: #a9bdc7;
+          --accent: #70d6c8;
+          --border: #29404b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.65;
+      }
+
+      main {
+        width: min(760px, calc(100% - 32px));
+        margin: 48px auto;
+        padding: clamp(28px, 5vw, 56px);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+      }
+
+      h1,
+      h2 {
+        line-height: 1.2;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 6vw, 3.25rem);
+        letter-spacing: -0.04em;
+      }
+
+      h2 {
+        margin: 36px 0 10px;
+        font-size: 1.2rem;
+      }
+
+      p,
+      ul {
+        margin: 10px 0;
+      }
+
+      .updated,
+      .summary {
+        color: var(--muted);
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code {
+        padding: 0.15em 0.35em;
+        border-radius: 6px;
+        background: var(--background);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Where Is My Tab · Effective August 1, 2026</p>
+      <p class="summary">
+        Where Is My Tab is a local-first Chrome extension. It does not operate a backend,
+        transmit browsing data to the developer, sell user data, or use advertising or analytics SDKs.
+      </p>
+
+      <h2>Information the extension handles</h2>
+      <p>To provide tab search, organization, save-for-later, and trend features, the extension handles:</p>
+      <ul>
+        <li>Open-tab titles, URLs, exact hostnames, and favicons.</li>
+        <li>Tab and window identifiers and state needed to switch, close, group, and move tabs.</li>
+        <li>Locally calculated activity signals, including last-switched time, active browsing duration, page-load counts, and audible playback transitions.</li>
+        <li>URLs and titles that the user explicitly saves to See it later.</li>
+        <li>Extension preferences such as the selected theme and card view.</li>
+      </ul>
+      <p>
+        The extension does not request Chrome identity access and does not collect the user's name,
+        account email, passwords, authentication data, financial information, personal communications,
+        precise location, form contents, or page contents.
+      </p>
+
+      <h2>How information is used</h2>
+      <p>The information is used only to provide the extension's user-facing tab-management features:</p>
+      <ul>
+        <li>Search and group existing tabs by title, URL, and exact hostname.</li>
+        <li>Switch to, close, save, and organize tabs across Chrome windows.</li>
+        <li>Display local browsing and playback trends by hostname.</li>
+        <li>Remember user-selected interface preferences.</li>
+      </ul>
+
+      <h2>Storage and retention</h2>
+      <p>
+        Extension data is stored only on the user's device in <code>chrome.storage.local</code>.
+        Where Is My Tab has no developer-operated server and does not provide cloud synchronization.
+        Stored data remains on the device until it is replaced by newer local data, pruned by the
+        extension's retention rules, or removed when the user uninstalls the extension or clears its data.
+      </p>
+
+      <h2>Sharing and transfer</h2>
+      <p>
+        Where Is My Tab does not sell, rent, share, or transfer user data to the developer or any third party.
+        It does not use user data for advertising, profiling, creditworthiness, lending, or purposes unrelated
+        to tab management. No humans are given access to the user's locally stored extension data.
+      </p>
+
+      <h2>Remote code and external requests</h2>
+      <p>
+        All executable code is included in the extension package. The extension does not load remote scripts,
+        remote modules, or WebAssembly, and it does not use dynamically evaluated code. Favicons are obtained
+        through Chrome's built-in favicon API rather than a developer-operated service.
+      </p>
+
+      <h2>Chrome Web Store Limited Use</h2>
+      <p>
+        The use of information received from Chrome APIs adheres to the
+        <a href="https://developer.chrome.com/docs/webstore/program-policies/user-data-faq" rel="noreferrer">
+          Chrome Web Store User Data Policy</a>, including the Limited Use requirements.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If the extension's data practices change, this policy and the Chrome Web Store disclosures will be
+        updated before the changed practices are introduced. The effective date above identifies the current version.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions or privacy requests can be submitted through the project's
+        <a href="https://github.com/iAladdin/where-is-my-tab/issues" rel="noreferrer">public issue tracker</a>.
+        Do not include private browsing data in a public issue.
+      </p>
+    </main>
+  </body>
+</html>

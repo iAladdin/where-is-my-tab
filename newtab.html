@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Where Is My Tab</title>
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-top">
+          <div class="hero-brand">
+            <span class="hero-mark" aria-hidden="true">
+              <img src="assets/icons/icon128.png" alt="">
+            </span>
+            <div class="hero-brand-copy">
+              <p class="eyebrow">Chrome new tab</p>
+              <p class="hero-status">Exact-host tab finder</p>
+            </div>
+          </div>
+          <div id="theme-switcher" class="theme-switcher" aria-label="Theme switcher"></div>
+        </div>
+        <div class="hero-copy">
+          <h1>Where Is My Tab</h1>
+          <p class="lede">Find existing tabs across every Chrome window, grouped by exact hostname, then switch back without opening duplicates.</p>
+          <section class="search-panel" aria-label="Search tabs">
+            <label class="search-label visually-hidden" for="search-input">Search tabs, URLs, or domains</label>
+            <div class="search-row">
+              <span id="search-leading" class="search-leading" aria-hidden="true"></span>
+              <input
+                id="search-input"
+                class="search-input"
+                type="search"
+                placeholder="Search tabs, URLs, or domains"
+                autofocus
+                autocomplete="off"
+                spellcheck="false"
+              >
+              <button id="clear-search" class="clear-search" type="button" hidden></button>
+            </div>
+          </section>
+          <div class="hero-chips" aria-hidden="true">
+            <span class="hero-chip">Current tabs</span>
+            <span class="hero-chip">Weekly trends</span>
+            <span class="hero-chip">See it later</span>
+          </div>
+        </div>
+      </header>
+
+      <main id="results" class="results" aria-live="polite">
+        <section class="empty-state">
+          <h2>Loading tabs...</h2>
+          <p>The current Chrome tab snapshot will appear here.</p>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="src/newtab.js"></script>
+  </body>
+</html>

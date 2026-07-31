@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+__pycache__/
+*.py[cod]
+output/
+release/chrome-web-store/*.zip
+release/chrome-web-store/where-is-my-tab-*-chrome-web-store/

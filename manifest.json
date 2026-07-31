@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Where Is My Tab",
+  "version": "0.1.0",
+  "description": "Replace Chrome's new tab page with a fast tab finder grouped by exact domain.",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "permissions": [
+    "tabs",
+    "alarms",
+    "storage",
+    "favicon"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  }
+}

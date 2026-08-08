@@ -7,6 +7,7 @@ import {
   formatRelativeTime,
   formatTrendMetricValue,
   GROUP_SORT_OPTIONS,
+  groupTabGroups,
   getTrendLeaders,
   getOtherTabIdsInGroup,
   getWeeklyTrendBoards,
@@ -15,7 +16,6 @@ import {
   normalizeTrendsStore,
   PREFERENCES_STORAGE_KEY,
   SEE_IT_LATER_STORAGE_KEY,
-  sortTabGroups,
   TRENDS_STORAGE_KEY,
   TREND_METRICS,
   TREND_WINDOWS,
@@ -516,19 +516,14 @@ function createContentTab(label, view, count) {
 
 function renderOpenGroups(profile, query, trackedItemsByTabId) {
   const sourceGroups = state.openGroupView === OPEN_GROUP_VIEWS.WINDOW ? profile.windowGroups : profile.groups;
-  const groups = sortTabGroups(sourceGroups, state.groupSort);
-  if (!groups.length) {
+  const sections = groupTabGroups(sourceGroups, state.groupSort);
+  if (!sections.length) {
     return renderSectionEmpty(buildOpenGroupEmptyMessage(query));
   }
 
-  const grid = document.createElement('div');
-  grid.className = 'masonry-grid';
-
-  groups.forEach((group, index) => {
-    grid.append(renderOpenGroupCard(group, trackedItemsByTabId, index, state.openGroupView));
-  });
-
-  return grid;
+  return renderGroupedCardSections(sections, (group, index) =>
+    renderOpenGroupCard(group, trackedItemsByTabId, index, state.openGroupView)
+  );
 }
 
 function renderLaterGroups(laterGroups, query) {
@@ -539,17 +534,54 @@ function renderLaterGroups(laterGroups, query) {
     return renderSectionEmpty(message);
   }
 
-  const grid = document.createElement('div');
-  grid.className = 'masonry-grid';
-
-  sortTabGroups(laterGroups, state.groupSort, {
+  const sections = groupTabGroups(laterGroups, state.groupSort, {
     itemsKey: 'items',
     timestampKey: 'lastTouchedAt'
-  }).forEach((group, index) => {
-    grid.append(renderLaterGroupCard(group, index));
   });
 
-  return grid;
+  return renderGroupedCardSections(sections, (group, index) => renderLaterGroupCard(group, index));
+}
+
+function renderGroupedCardSections(sections, renderCard) {
+  const container = document.createElement('div');
+  container.className = 'grouped-card-sections';
+
+  sections.forEach((section) => {
+    const sectionElement = document.createElement('section');
+    sectionElement.className = `grouped-card-section${section.isPinned ? ' is-pinned-section' : ''}`;
+
+    const heading = document.createElement('header');
+    heading.className = 'grouped-card-section-heading';
+
+    const title = document.createElement('div');
+    title.className = 'grouped-card-section-title';
+    if (section.isPinned) {
+      const icon = createIcon('pin');
+      icon.classList.add('grouped-card-section-icon');
+      title.append(icon);
+    }
+
+    const label = document.createElement('h3');
+    label.textContent = section.label;
+    title.append(label);
+
+    const count = document.createElement('span');
+    count.className = 'grouped-card-section-count';
+    count.textContent = `${section.groups.length} group${section.groups.length === 1 ? '' : 's'}`;
+
+    heading.append(title, count);
+
+    const grid = document.createElement('div');
+    grid.className = 'masonry-grid';
+    section.groups.forEach((group, index) => {
+      grid.append(renderCard(group, index));
+    });
+
+    sectionElement.append(heading, grid);
+    container.append(sectionElement);
+  });
+
+  return container;
 }
 
 function renderTrendsView(query) {

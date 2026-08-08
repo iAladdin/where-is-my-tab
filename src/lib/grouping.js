@@ -4,7 +4,7 @@ export const PREFERENCES_STORAGE_KEY = 'uiPreferences';
 export const TRENDS_STORAGE_KEY = 'domainTrends';
 
 const SEE_IT_LATER_SCHEMA_VERSION = 1;
-const PREFERENCES_SCHEMA_VERSION = 2;
+const PREFERENCES_SCHEMA_VERSION = 3;
 const TRENDS_SCHEMA_VERSION = 1;
 const TREND_DAILY_RETENTION_DAYS = 400;
 const DAY_MS = 86_400_000;
@@ -27,6 +27,18 @@ export const GROUP_SORT_OPTIONS = Object.freeze([
 ]);
 
 const GROUP_SORT_IDS = new Set(GROUP_SORT_OPTIONS.map((option) => option.id));
+
+const COUNT_BUCKET_BOUNDARIES = Object.freeze([10, 20, 50, 100, 200, 500, 1000]);
+const RECENT_BUCKETS = Object.freeze([
+  { key: 'under-1h', label: '< 1h', upperBoundMs: 60 * 60 * 1000 },
+  { key: '1-6h', label: '1–6h', upperBoundMs: 6 * 60 * 60 * 1000 },
+  { key: '6-12h', label: '6–12h', upperBoundMs: 12 * 60 * 60 * 1000 },
+  { key: '12-24h', label: '12–24h', upperBoundMs: 24 * 60 * 60 * 1000 },
+  { key: '1-3d', label: '1–3d', upperBoundMs: 3 * DAY_MS },
+  { key: '3d-1w', label: '3d–1w', upperBoundMs: 7 * DAY_MS },
+  { key: '1-2w', label: '1–2w', upperBoundMs: 14 * DAY_MS },
+  { key: 'over-2w', label: '2w+', upperBoundMs: Infinity }
+]);
 
 export const TREND_METRICS = Object.freeze([
   {
@@ -155,6 +167,53 @@ export function sortTabGroups(groups, sortId, options = {}) {
   });
 }
 
+export function groupTabGroups(groups, sortId, options = {}) {
+  const sourceGroups = Array.isArray(groups) ? groups : [];
+  const itemsKey = options.itemsKey ?? 'tabs';
+  const timestampKey = options.timestampKey ?? 'lastActivatedAt';
+  const now = typeof options.now === 'number' ? options.now : Date.now();
+  const resolvedSortId = GROUP_SORT_IDS.has(sortId) ? sortId : 'name';
+  const pinnedGroups = sourceGroups.filter((group) => isPinnedGroup(group, itemsKey, options.pinnedKey));
+  const regularGroups = sourceGroups.filter((group) => !isPinnedGroup(group, itemsKey, options.pinnedKey));
+  const sections = [];
+
+  if (pinnedGroups.length) {
+    sections.push({
+      key: 'pinned',
+      label: 'Pinned',
+      isPinned: true,
+      groups: sortTabGroups(pinnedGroups, resolvedSortId, options)
+    });
+  }
+
+  const bucketDefinitions =
+    resolvedSortId === 'name'
+      ? buildNameBucketDefinitions(regularGroups)
+      : resolvedSortId === 'count'
+        ? buildCountBucketDefinitions(regularGroups, itemsKey)
+        : buildRecentBucketDefinitions(regularGroups, timestampKey, now);
+
+  for (const bucket of bucketDefinitions) {
+    const bucketGroups = regularGroups.filter((group) => bucket.matches(group));
+    if (!bucketGroups.length) {
+      continue;
+    }
+
+    sections.push({
+      key: bucket.key,
+      label: bucket.label,
+      isPinned: false,
+      groups: sortTabGroups(bucketGroups, resolvedSortId, {
+        ...options,
+        itemsKey,
+        timestampKey
+      })
+    });
+  }
+
+  return sections;
+}
+
 export function getOtherTabIdsInGroup(group, keptTabId) {
   if (!Number.isInteger(keptTabId) || !Array.isArray(group?.tabs)) {
     return [];
@@ -167,6 +226,126 @@ export function getOtherTabIdsInGroup(group, keptTabId) {
         .filter((tabId) => Number.isInteger(tabId) && tabId !== keptTabId)
     )
   );
+}
+
+function isPinnedGroup(group, itemsKey, pinnedKey) {
+  if (pinnedKey && group?.[pinnedKey] != null) {
+    return Boolean(group[pinnedKey]);
+  }
+
+  return (Array.isArray(group?.[itemsKey]) ? group[itemsKey] : []).some((item) => Boolean(item?.pinned));
+}
+
+function buildNameBucketDefinitions(groups) {
+  const keys = new Set(
+    groups.map((group) => {
+      const firstCharacter = String(group.label ?? '').trim().charAt(0).toUpperCase();
+      if (/^[A-Z]$/.test(firstCharacter)) {
+        return firstCharacter;
+      }
+      if (/^[0-9]$/.test(firstCharacter)) {
+        return '0-9';
+      }
+      return '#';
+    })
+  );
+
+  return Array.from(keys)
+    .sort((left, right) => {
+      if (left === '#') return 1;
+      if (right === '#') return -1;
+      if (left === '0-9') return 1;
+      if (right === '0-9') return -1;
+      return left.localeCompare(right);
+    })
+    .map((key) => ({
+      key: `name-${key.toLowerCase()}`,
+      label: key,
+      matches: (group) => {
+        const firstCharacter = String(group.label ?? '').trim().charAt(0).toUpperCase();
+        if (key === '#') {
+          return !/^[A-Z0-9]$/.test(firstCharacter);
+        }
+        if (key === '0-9') {
+          return /^[0-9]$/.test(firstCharacter);
+        }
+        return firstCharacter === key;
+      }
+    }));
+}
+
+function buildCountBucketDefinitions(groups, itemsKey) {
+  const maxCount = groups.reduce((max, group) => Math.max(max, group[itemsKey]?.length ?? 0), 0);
+  const definitions = [
+    {
+      key: 'count-1',
+      label: '1 tab',
+      matches: (group) => (group[itemsKey]?.length ?? 0) === 1
+    },
+    {
+      key: 'count-2-5',
+      label: '2–5 tabs',
+      matches: (group) => {
+        const count = group[itemsKey]?.length ?? 0;
+        return count >= 2 && count <= 5;
+      }
+    }
+  ];
+
+  let lowerBound = 6;
+  for (const upperBound of COUNT_BUCKET_BOUNDARIES) {
+    if (lowerBound > maxCount) {
+      break;
+    }
+
+    const bucketLowerBound = lowerBound;
+    const bucketUpperBound = upperBound;
+
+    definitions.push({
+      key: `count-${bucketLowerBound}-${bucketUpperBound}`,
+      label: `${bucketLowerBound}–${bucketUpperBound} tabs`,
+      matches: (group) => {
+        const count = group[itemsKey]?.length ?? 0;
+        return count >= bucketLowerBound && count <= bucketUpperBound;
+      }
+    });
+    lowerBound = upperBound + 1;
+  }
+
+  if (lowerBound <= maxCount) {
+    definitions.push({
+      key: `count-${lowerBound}-plus`,
+      label: `${lowerBound}+ tabs`,
+      matches: (group) => (group[itemsKey]?.length ?? 0) >= lowerBound
+    });
+  }
+
+  return definitions;
+}
+
+function buildRecentBucketDefinitions(groups, timestampKey, now) {
+  const definitions = RECENT_BUCKETS.map((bucket, index) => ({
+    key: `recent-${bucket.key}`,
+    label: bucket.label,
+    matches: (group) => {
+      const timestamp = group[timestampKey];
+      if (typeof timestamp !== 'number') {
+        return false;
+      }
+
+      const age = Math.max(0, now - timestamp);
+      const previousUpperBound = index === 0 ? -1 : RECENT_BUCKETS[index - 1].upperBoundMs;
+      return age > previousUpperBound && age <= bucket.upperBoundMs;
+    }
+  }));
+
+  definitions.push({
+    key: 'recent-no-activity',
+    label: 'No activity',
+    matches: (group) => typeof group[timestampKey] !== 'number'
+  });
+
+  return definitions;
 }
 
 export function normalizeSeeItLaterStore(rawValue) {

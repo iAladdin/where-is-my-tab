@@ -13,7 +13,8 @@
 - Uses an icon-led glassmorphism visual system with a centered hero search bar, a compact theme-swatch dock, and frosted card surfaces across all views.
 - Uses a responsive packed-column card layout so uneven cards stack more tightly and waste less vertical space.
 - Starts domain, window, and saved-tab cards in a compact collapsed state; each card expands on demand.
-- Sorts cards by name, tab count, or recent activity and remembers the last selected order.
+- Groups cards by name initial, tab-count range, or recent-activity range and remembers the last selected mode.
+- Always puts cards containing Chrome-pinned tabs into a top `Pinned` section; empty dynamic sections stay hidden.
 - Keeps a centered, search-engine-style global search box in the header and filters by title, URL, and domain text.
 - Uses a main-content toggle with three views:
   - `Current open tabs`
@@ -57,7 +58,8 @@
 
 - Scope stays extension-native and lightweight: no framework, no server, no build step.
 - Search behavior is consistent filtering, not fuzzy reranking. Cards and rows disappear when they do not match the current query.
-- Cards default to name order, with persisted alternatives for largest groups and most recent activity.
+- Cards default to name-initial sections, with persisted alternatives for adaptive tab-count and recent-activity sections.
+- Each sort mode keeps a top `Pinned` section when a card contains a Chrome-pinned tab. Name uses initials; count uses `1`, `2–5`, then populated adaptive ranges; recent uses populated windows from `< 1h` through `2w+`.
 - Card expansion is intentionally session-only so every new tab starts from the same compact overview.
 - The default main view is `Current open tabs`.
 - Inside `Current open tabs`, `Domain` remains the default card view and `Window` is an alternate persisted perspective.
@@ -105,7 +107,7 @@
 - `src/styles.css`
   Search-bar styling, packed-column responsive card layout, trends leaderboard styling, compact card/row styling, icon actions, badges, and theme tokens.
 - `tests/grouping.test.js`
-  Node tests for exact-host grouping, cross-window grouping, favicon propagation, search behavior, see-it-later snapshot handling, trends ranking helpers, and time formatting.
+  Node tests for exact-host grouping, cross-window grouping, favicon propagation, search behavior, sort sections, see-it-later snapshot handling, trends ranking helpers, and time formatting.
 - `scripts/validate-manifest.mjs`
   Repeatable smoke-check for manifest wiring, trends permissions, and required UI entry files.
 - `scripts/generate_store_assets.py`

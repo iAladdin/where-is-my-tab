@@ -60,6 +60,7 @@ assert.doesNotMatch(backgroundJs, /chrome\.identity/, 'Expected no Chrome identi
 assert.match(newtabJs, /CONTENT_VIEWS\.\s*TRENDS/, 'Expected a Trends content view in the new-tab UI.');
 assert.match(newtabJs, /getTrendLeaders/, 'Expected Trends leaderboard rendering in the new-tab UI.');
 assert.match(newtabJs, /renderGroupSortControl/, 'Expected the persisted card sort control.');
+assert.match(newtabJs, /renderGroupedCardSections/, 'Expected visible sort bucket sections.');
 assert.match(newtabJs, /expandedCards/, 'Expected compact expandable card state.');
 assert.match(newtabJs, /closeOtherTabsInGroup/, 'Expected the keep-only-this-tab action.');
 assert.match(newtabJs, /import \{ createIcon \} from '\.\/lib\/icons\.js'/, 'Expected Lucide icon helper wiring.');

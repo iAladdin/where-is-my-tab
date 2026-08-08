@@ -8,6 +8,7 @@ import {
   formatTrendMetricValue,
   formatRelativeTime,
   GROUP_SORT_OPTIONS,
+  groupTabGroups,
   getOtherTabIdsInGroup,
   getTrendCountsForWindow,
   getTrendLeaders,
@@ -421,6 +422,54 @@ test('getOtherTabIdsInGroup keeps the selected tab and returns unique peers to c
   );
   assert.deepEqual(getOtherTabIdsInGroup({ tabs: [{ id: 10 }] }, 10), []);
   assert.deepEqual(getOtherTabIdsInGroup(undefined, 10), []);
+});
+
+test('groupTabGroups keeps pinned cards first and creates only populated name buckets', () => {
+  const sections = groupTabGroups([
+    { label: 'beta.example.com', tabs: [{ id: 1 }] },
+    { label: 'alpha.example.com', tabs: [{ id: 2, pinned: true }] },
+    { label: '7.example.com', tabs: [{ id: 3 }] },
+    { label: '中文.example.com', tabs: [{ id: 4 }] }
+  ], 'name');
+
+  assert.deepEqual(sections.map((section) => section.label), ['Pinned', 'B', '0-9', '#']);
+  assert.deepEqual(sections[0].groups.map((group) => group.label), ['alpha.example.com']);
+  assert.deepEqual(sections[3].groups.map((group) => group.label), ['中文.example.com']);
+});
+
+test('groupTabGroups uses adaptive populated count buckets', () => {
+  const makeTabs = (count) => Array.from({ length: count }, (_, index) => ({ id: index + 1 }));
+  const sections = groupTabGroups(
+    [
+      { label: 'one', tabs: makeTabs(1) },
+      { label: 'four', tabs: makeTabs(4) },
+      { label: 'seven', tabs: makeTabs(7) },
+      { label: 'twenty-five', tabs: makeTabs(25) },
+      { label: 'one-hundred-one', tabs: makeTabs(101) }
+    ],
+    'count'
+  );
+
+  assert.deepEqual(sections.map((section) => section.label), ['1 tab', '2–5 tabs', '6–10 tabs', '21–50 tabs', '101–200 tabs']);
+});
+
+test('groupTabGroups places recent cards into populated age ranges', () => {
+  const now = 1_000_000_000;
+  const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
+  const sections = groupTabGroups(
+    [
+      { label: 'fresh', tabs: [{ id: 1 }], lastActivatedAt: now - 30 * 60 * 1000 },
+      { label: 'today', tabs: [{ id: 2 }], lastActivatedAt: now - 8 * hour },
+      { label: 'week', tabs: [{ id: 3 }], lastActivatedAt: now - 5 * day },
+      { label: 'unknown', tabs: [{ id: 4 }], lastActivatedAt: null }
+    ],
+    'recent',
+    { now }
+  );
+
+  assert.deepEqual(sections.map((section) => section.label), ['< 1h', '6–12h', '3d–1w', 'No activity']);
+  assert.equal(sections[0].groups[0].label, 'fresh');
 });
 
 test('normalizePreferences falls back to the default theme', () => {

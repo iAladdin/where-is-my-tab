@@ -1528,6 +1528,63 @@ button {
   margin: 0;
 }
 
+.grouped-card-sections {
+  display: grid;
+  gap: 28px;
+}
+
+.grouped-card-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.grouped-card-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 28px;
+  padding: 0 4px;
+}
+
+.grouped-card-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.grouped-card-section-title h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.grouped-card-section-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--accent-strong);
+}
+
+.grouped-card-section-count {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.is-pinned-section .grouped-card-section-heading {
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface));
+}
+
 .masonry-grid {
   display: grid;
   grid-template-columns: repeat(var(--masonry-columns, 1), minmax(0, 1fr));

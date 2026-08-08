@@ -9,6 +9,7 @@ import {
   GROUP_SORT_DIRECTIONS,
   GROUP_SORT_OPTIONS,
   groupTabGroups,
+  getTrackableHost,
   getTrendLeaders,
   getOtherTabIdsInGroup,
   getWeeklyTrendBoards,
@@ -55,6 +56,8 @@ const elements = {
 const extensionRoot = chrome.runtime.getURL('/');
 const FAVICON_CACHE_LIMIT = 256;
 const faviconLoadCache = new Map();
+const PAGE_DESCRIPTION_CACHE_TTL_MS = 5 * 60 * 1000;
+const pageDescriptionCache = new Map();
 
 const state = {
   query: '',
@@ -68,6 +71,7 @@ const state = {
   openGroupView: normalizePreferences().openGroupView,
   groupSort: normalizePreferences().groupSort,
   groupSortDirections: normalizePreferences().groupSortDirections,
+  tabDescriptions: {},
   expandedCards: new Set(),
   trendMetric: TREND_METRICS[0].id,
   trendWindow: TREND_WINDOWS[0].id,
@@ -79,6 +83,7 @@ const state = {
 let refreshTimer = null;
 let layoutFrame = 0;
 let searchFocusTimers = [];
+let latestDescriptionRequest = null;
 
 initialize().catch((error) => {
   console.error('Failed to initialize new tab page.', error);
@@ -336,12 +341,14 @@ async function refreshSnapshotInputs() {
     state.openGroupView = state.preferences.openGroupView;
     state.groupSort = state.preferences.groupSort;
     state.groupSortDirections = state.preferences.groupSortDirections;
+    state.tabDescriptions = getCachedTabDescriptions(state.tabs);
   } catch (error) {
     console.error('Failed to refresh tab snapshot.', error);
     state.error = 'Could not read the current tab list.';
   }
 
   render();
+  void hydrateTabDescriptions(state.tabs);
 }
 
 function render() {
@@ -358,7 +365,8 @@ function render() {
 
   const snapshot = buildTabSnapshot(state.tabs, state.tabActivity, state.seeItLater, {
     query: state.query,
-    profile: state.profile
+    profile: state.profile,
+    tabDescriptions: state.tabDescriptions
   });
 
   state.snapshot = snapshot;
@@ -367,6 +375,80 @@ function render() {
     renderProfile(snapshot.profiles[0], state.laterGroups, state.query, buildTrackedItemIndex(state.seeItLater))
   );
   schedulePackedLayout();
+}
+
+async function hydrateTabDescriptions(tabs) {
+  const requestId = Symbol('tab-description-request');
+  latestDescriptionRequest = requestId;
+  const candidates = tabs.filter((tab) => isDescriptionCandidate(tab));
+
+  const entries = await Promise.all(
+    candidates.map(async (tab) => {
+      const url = tab.url ?? tab.pendingUrl ?? '';
+      const cached = pageDescriptionCache.get(url);
+      if (cached && Date.now() - cached.fetchedAt < PAGE_DESCRIPTION_CACHE_TTL_MS) {
+        return [String(tab.id), cached.description];
+      }
+
+      const description = await fetchTabDescription(tab);
+      pageDescriptionCache.set(url, {
+        description,
+        fetchedAt: Date.now()
+      });
+      return [String(tab.id), description];
+    })
+  );
+
+  if (latestDescriptionRequest !== requestId) {
+    return;
+  }
+
+  state.tabDescriptions = Object.fromEntries(entries.filter(([, description]) => description));
+  render();
+}
+
+function getCachedTabDescriptions(tabs) {
+  return Object.fromEntries(
+    tabs
+      .filter((tab) => isDescriptionCandidate(tab))
+      .map((tab) => [String(tab.id), pageDescriptionCache.get(tab.url ?? tab.pendingUrl ?? '')?.description ?? ''])
+      .filter(([, description]) => description)
+  );
+}
+
+function isDescriptionCandidate(tab) {
+  const url = tab?.url ?? tab?.pendingUrl ?? '';
+  return typeof tab?.id === 'number' && !tab.discarded && !tab.frozen && Boolean(getTrackableHost(url));
+}
+
+async function fetchTabDescription(tab) {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: {
+        tabId: tab.id
+      },
+      func: readPageDescription
+    });
+    return normalizePageDescription(results?.[0]?.result);
+  } catch {
+    return '';
+  }
+}
+
+function readPageDescription() {
+  const descriptionNode =
+    document.querySelector('meta[name="description" i]') ??
+    document.querySelector('meta[property="og:description" i]');
+  return descriptionNode?.getAttribute('content') ?? '';
+}
+
+function normalizePageDescription(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const description = value.replace(/\s+/g, ' ').trim();
+  return description ? middleTruncate(description, 180, 42) : '';
 }
 
 function applyTheme() {
@@ -1416,16 +1498,12 @@ function renderOpenTabRow(tab, trackedItem, options = {}) {
   });
 
   main.append(
-    createBadge(tab.windowLabel, tab.active ? 'is-active' : 'is-window'),
-    createLine('tab-title', tab.title, {
-      maxLength: 72,
-      tailLength: 18
-    }),
-    createLine('tab-url', tab.url || tab.displayUrl, {
-      maxLength: 84,
-      tailLength: 24
-    }),
-    renderOpenTabMetaLine(tab)
+    renderTabPrimaryContent(
+      tab.title,
+      tab.url || tab.displayUrl,
+      tab.lastActivatedAt ? `Last switched ${formatRelativeTime(tab.lastActivatedAt)}` : 'Not switched yet'
+    ),
+    renderTabDetailRow(tab.description, renderTabMetadata(tab))
   );
 
   const actions = document.createElement('div');
@@ -1471,34 +1549,60 @@ function renderOpenTabRow(tab, trackedItem, options = {}) {
   return row;
 }
 
-function renderOpenTabMetaLine(tab) {
-  const line = document.createElement('div');
-  line.className = 'tab-meta-line';
-
-  if (tab.inactive) {
-    const badge = document.createElement('span');
-    badge.className = 'tab-status-badge is-inactive';
-    badge.textContent = 'Inactive';
-    badge.title =
-      tab.inactiveReason === 'discarded'
-        ? 'Chrome has discarded this tab due to inactivity.'
-        : tab.inactiveReason === 'frozen'
-          ? 'Chrome has frozen this tab due to inactivity.'
-          : 'Chrome has marked this tab inactive.';
-    line.append(badge);
-  }
-
-  line.append(
-    createLine(
-      'tab-time',
-      tab.lastActivatedAt ? `Last switched ${formatRelativeTime(tab.lastActivatedAt)}` : 'Not switched yet',
-      {
-        truncate: false
-      }
-    )
+function renderTabPrimaryContent(titleText, urlText, lastSeenText) {
+  const primary = document.createElement('span');
+  primary.className = 'tab-primary';
+  primary.append(
+    createLine('tab-title', titleText, {
+      maxLength: 140,
+      tailLength: 28
+    }),
+    createLine('tab-url', urlText, {
+      maxLength: 120,
+      tailLength: 32
+    }),
+    createLine('tab-time', lastSeenText, {
+      truncate: false
+    })
   );
+  return primary;
+}
 
-  return line;
+function renderTabDetailRow(description, metadata) {
+  const detail = document.createElement('span');
+  detail.className = 'tab-detail-row';
+
+  const descriptionNode = document.createElement('span');
+  descriptionNode.className = 'tab-description';
+  const fullDescription = normalizePageDescription(description) || 'No page description available';
+  descriptionNode.textContent = fullDescription;
+  descriptionNode.title = fullDescription;
+
+  detail.append(descriptionNode, metadata);
+  return detail;
+}
+
+function renderTabMetadata({ windowLabel, active, inactive, inactiveReason, saved = false }) {
+  const metadata = document.createElement('span');
+  metadata.className = 'tab-metadata';
+
+  const windowBadge = createBadge(windowLabel || (saved ? 'Saved' : 'Window ?'), saved ? 'is-saved' : 'is-window');
+  metadata.append(windowBadge);
+
+  const status = document.createElement('span');
+  status.className = `tab-status-badge ${active ? 'is-active' : 'is-inactive'}`;
+  status.textContent = saved ? 'Saved' : active ? 'Active' : 'Inactive';
+  status.title = saved
+    ? 'Saved for later.'
+    : inactiveReason === 'discarded'
+      ? 'Chrome has discarded this tab due to inactivity.'
+      : inactiveReason === 'frozen'
+        ? 'Chrome has frozen this tab due to inactivity.'
+        : inactive
+          ? 'Chrome has marked this tab inactive.'
+          : 'This tab is active.';
+  metadata.append(status);
+  return metadata;
 }
 
 function renderLaterItemRow(item) {
@@ -1518,25 +1622,24 @@ function renderLaterItemRow(item) {
   });
 
   main.append(
-    createBadge(item.isOpen ? item.windowLabel : 'Saved', item.isOpen ? 'is-window' : 'is-saved'),
-    createLine('tab-title', item.title, {
-      maxLength: 72,
-      tailLength: 18
-    }),
-    createLine('tab-url', item.displayUrl, {
-      maxLength: 84,
-      tailLength: 24
-    }),
-    createLine(
-      'tab-time',
+    renderTabPrimaryContent(
+      item.title,
+      item.displayUrl,
       item.isOpen
         ? item.lastActivatedAt
           ? `Last switched ${formatRelativeTime(item.lastActivatedAt)}`
           : 'Not switched yet'
-        : `Saved ${formatRelativeTime(item.updatedAt)}`,
-      {
-        truncate: false
-      }
+        : `Saved ${formatRelativeTime(item.updatedAt)}`
+    ),
+    renderTabDetailRow(
+      item.description,
+      renderTabMetadata({
+        windowLabel: item.windowLabel,
+        active: item.isOpen,
+        inactive: item.inactive,
+        inactiveReason: item.inactiveReason,
+        saved: !item.isOpen
+      })
     )
   );
 

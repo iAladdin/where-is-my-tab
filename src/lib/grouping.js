@@ -3,7 +3,7 @@ export const SEE_IT_LATER_STORAGE_KEY = 'seeItLater';
 export const PREFERENCES_STORAGE_KEY = 'uiPreferences';
 export const TRENDS_STORAGE_KEY = 'domainTrends';
 
-const SEE_IT_LATER_SCHEMA_VERSION = 1;
+const SEE_IT_LATER_SCHEMA_VERSION = 2;
 const PREFERENCES_SCHEMA_VERSION = 4;
 const TRENDS_SCHEMA_VERSION = 1;
 const TREND_DAILY_RETENTION_DAYS = 400;
@@ -410,6 +410,7 @@ export function normalizeSeeItLaterStore(rawValue) {
       .map((item) => ({
         id: item.id,
         title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : DEFAULT_EMPTY_TITLE,
+        description: normalizeOptionalString(item.description),
         url: item.url,
         displayUrl:
           typeof item.displayUrl === 'string' && item.displayUrl.trim() ? item.displayUrl.trim() : item.url,
@@ -455,6 +456,7 @@ export function createSeeItLaterItem(tab, now = Date.now()) {
   return {
     id: `later:${now}:${tab.id}`,
     title: tab.title,
+    description: normalizeOptionalString(tab.description),
     url: tab.url,
     displayUrl: tab.url || tab.displayUrl,
     favIconUrl: tab.favIconUrl,
@@ -531,10 +533,11 @@ export function buildTabSnapshot(rawTabs, tabActivityById = {}, rawSeeItLaterSto
   const profile = options.profile ?? DEFAULT_PROFILE_BUCKET;
   const query = options.query ?? '';
   const tokens = tokenizeQuery(query);
+  const tabDescriptions = options.tabDescriptions ?? {};
   const windowLabelById = buildWindowLabels(tabs);
   const normalizedTabs = tabs
     .filter((tab) => typeof tab.id === 'number')
-    .map((tab) => normalizeTab(tab, tabActivityById, windowLabelById));
+    .map((tab) => normalizeTab(tab, tabActivityById, windowLabelById, tabDescriptions));
   const normalizedTabsById = new Map(normalizedTabs.map((tab) => [tab.id, tab]));
   const seeItLaterStore = normalizeSeeItLaterStore(rawSeeItLaterStore);
   const openTrackedTabIds = new Set();
@@ -836,7 +839,7 @@ export function formatTrendMetricValue(metricId, value) {
   return `${safeValue} open${safeValue === 1 ? '' : 's'}`;
 }
 
-function normalizeTab(tab, tabActivityById, windowLabelById) {
+function normalizeTab(tab, tabActivityById, windowLabelById, tabDescriptions = {}) {
   const url = tab.url ?? tab.pendingUrl ?? '';
   const location = parseTabLocation(url);
   const tabId = String(tab.id);
@@ -849,6 +852,7 @@ function normalizeTab(tab, tabActivityById, windowLabelById) {
     windowId: tab.windowId,
     windowLabel: windowLabelById.get(tab.windowId) ?? 'Window ?',
     title: (tab.title || location.groupLabel || DEFAULT_EMPTY_TITLE).trim(),
+    description: normalizeOptionalString(tabDescriptions[tabId]),
     url,
     displayUrl: url || location.shortUrl,
     favIconUrl: normalizeOptionalString(tab.favIconUrl),
@@ -875,6 +879,7 @@ function createRenderedSeeItLaterItem(item, openTab) {
       windowId: openTab.windowId,
       windowLabel: openTab.windowLabel,
       title: openTab.title,
+      description: openTab.description,
       url: openTab.url,
       displayUrl: openTab.url || openTab.displayUrl,
       favIconUrl: openTab.favIconUrl,
@@ -896,6 +901,7 @@ function createRenderedSeeItLaterItem(item, openTab) {
     windowId: null,
     windowLabel: null,
     title: item.title,
+    description: normalizeOptionalString(item.description),
     url: item.url,
     displayUrl: item.displayUrl || item.url,
     favIconUrl: item.favIconUrl,

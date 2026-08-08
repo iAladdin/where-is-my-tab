@@ -34,6 +34,15 @@ assert.ok(
   'Expected the favicon permission for extension favicon fallbacks.'
 );
 assert.ok(
+  Array.isArray(manifest.permissions) && manifest.permissions.includes('scripting'),
+  'Expected the scripting permission for local page descriptions.'
+);
+assert.deepEqual(
+  manifest.host_permissions,
+  ['http://*/*', 'https://*/*'],
+  'Expected HTTP and HTTPS host access for local meta descriptions.'
+);
+assert.ok(
   Array.isArray(manifest.permissions) && !manifest.permissions.includes('identity'),
   'Expected no identity permission.'
 );
@@ -61,6 +70,7 @@ assert.match(newtabJs, /CONTENT_VIEWS\.\s*TRENDS/, 'Expected a Trends content vi
 assert.match(newtabJs, /getTrendLeaders/, 'Expected Trends leaderboard rendering in the new-tab UI.');
 assert.match(newtabJs, /renderGroupSortControl/, 'Expected the persisted card sort control.');
 assert.match(newtabJs, /setGroupSortDirection/, 'Expected Asc\/Desc sort direction persistence.');
+assert.match(newtabJs, /hydrateTabDescriptions/, 'Expected local webpage description hydration.');
 assert.match(newtabJs, /renderGroupedCardSections/, 'Expected visible sort bucket sections.');
 assert.match(newtabJs, /expandedCards/, 'Expected compact expandable card state.');
 assert.match(newtabJs, /closeOtherTabsInGroup/, 'Expected the keep-only-this-tab action.');

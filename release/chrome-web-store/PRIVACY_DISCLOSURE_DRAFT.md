@@ -7,6 +7,9 @@ Use this as the source draft when filling the Chrome Web Store privacy section.
 - Web history / browsing activity
   Why:
   The extension reads current tab titles and URLs, groups tabs by hostname, and stores lightweight forward-looking trend metrics for tab usage.
+- Website content
+  Why:
+  The extension reads only the short `meta[name="description"]` or `og:description` value from accessible HTTP(S) tabs to show a local description under each tab title. It does not read full page content or transmit the description.
 
 ## Data Storage Model
 
@@ -36,6 +39,10 @@ Use this as the source draft when filling the Chrome Web Store privacy section.
   Needed to flush best-effort active-tab browse-time tracking in the background.
 - `favicon`
   Needed to render Chrome favicon fallbacks for trend and domain cards.
+- `scripting`
+  Needed to read the short page-description metadata locally from accessible HTTP(S) tabs.
+- `http://*/*` and `https://*/*`
+  Needed so the packaged script can inspect standard description metadata on the user's open webpages. The values stay local and are not sent to a server.
 
 ## Reviewer Notes
 

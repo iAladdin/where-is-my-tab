@@ -98,21 +98,23 @@
       <p>To provide tab search, organization, save-for-later, and trend features, the extension handles:</p>
       <ul>
         <li>Open-tab titles, URLs, exact hostnames, and favicons.</li>
+        <li>Short page descriptions read from standard webpage metadata when Chrome allows access to the tab.</li>
         <li>Tab and window identifiers and state needed to switch, close, group, and move tabs.</li>
         <li>Locally calculated activity signals, including last-switched time, active browsing duration, page-load counts, and audible playback transitions.</li>
-        <li>URLs and titles that the user explicitly saves to See it later.</li>
+        <li>URLs, titles, and short page descriptions that the user explicitly saves to See it later.</li>
         <li>Extension preferences such as the selected theme, card view, and sort order.</li>
       </ul>
       <p>
         The extension does not request Chrome identity access and does not collect the user's name,
         account email, passwords, authentication data, financial information, personal communications,
-        precise location, form contents, or page contents.
+        precise location, form contents, or full page contents. Page descriptions are read locally for display only.
       </p>
 
       <h2>How information is used</h2>
       <p>The information is used only to provide the extension's user-facing tab-management features:</p>
       <ul>
         <li>Search and group existing tabs by title, URL, and exact hostname.</li>
+        <li>Show a short description from the current page's metadata when available.</li>
         <li>Switch to, close, save, and organize tabs across Chrome windows.</li>
         <li>Display local browsing and playback trends by hostname.</li>
         <li>Remember user-selected interface preferences.</li>
@@ -137,7 +139,8 @@
       <p>
         All executable code is included in the extension package. The extension does not load remote scripts,
         remote modules, or WebAssembly, and it does not use dynamically evaluated code. Favicons are obtained
-        through Chrome's built-in favicon API rather than a developer-operated service.
+        through Chrome's built-in favicon API rather than a developer-operated service. Page descriptions are read
+        by a packaged script in the tab and are never sent to a developer-operated service.
       </p>
 
       <h2>Chrome Web Store Limited Use</h2>

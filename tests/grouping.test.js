@@ -83,6 +83,17 @@ test('buildTabSnapshot groups matching domains across windows and keeps stable h
   assert.equal(secondWindowGroup.domainCount, 2);
 });
 
+test('buildTabSnapshot carries locally-read page descriptions into tab cards', () => {
+  const snapshot = buildTabSnapshot(
+    [{ id: 1, windowId: 1, title: 'Docs', url: 'https://docs.example.com/start' }],
+    {},
+    undefined,
+    { tabDescriptions: { '1': 'A short documentation overview.' } }
+  );
+
+  assert.equal(snapshot.profiles[0].groups[0].tabs[0].description, 'A short documentation overview.');
+});
+
 test('group ordering stays predictable even when activity and size differ', () => {
   const snapshot = buildTabSnapshot(
     [

@@ -435,15 +435,28 @@ test('getOtherTabIdsInGroup keeps the selected tab and returns unique peers to c
 
 test('groupTabGroups keeps pinned cards first and creates only populated name buckets', () => {
   const sections = groupTabGroups([
-    { label: 'beta.example.com', tabs: [{ id: 1 }] },
-    { label: 'alpha.example.com', tabs: [{ id: 2, pinned: true }] },
-    { label: '7.example.com', tabs: [{ id: 3 }] },
-    { label: '中文.example.com', tabs: [{ id: 4 }] }
+      { label: 'beta.example.com', tabs: [{ id: 1 }] },
+      { label: 'alpha.example.com', tabs: [{ id: 2, pinned: true }] },
+      { label: 'apple.example.com', tabs: [{ id: 5 }] },
+      { label: '7.example.com', tabs: [{ id: 3 }] },
+      { label: '中文.example.com', tabs: [{ id: 4 }] }
   ], 'name');
 
-  assert.deepEqual(sections.map((section) => section.label), ['Pinned', 'B', '0-9', '#']);
+  assert.deepEqual(sections.map((section) => section.label), ['Pinned', 'A', 'B', '0-9', '#']);
   assert.deepEqual(sections[0].groups.map((group) => group.label), ['alpha.example.com']);
-  assert.deepEqual(sections[3].groups.map((group) => group.label), ['中文.example.com']);
+  assert.deepEqual(sections[4].groups.map((group) => group.label), ['中文.example.com']);
+  assert.deepEqual(
+    groupTabGroups(
+      [
+        { label: 'alpha', tabs: [{ id: 1 }] },
+        { label: 'beta', tabs: [{ id: 2 }] },
+        { label: 'zulu', tabs: [{ id: 3 }] }
+      ],
+      'name',
+      { direction: 'desc' }
+    ).map((section) => section.label),
+    ['Z', 'B', 'A']
+  );
 });
 
 test('groupTabGroups uses adaptive populated count buckets', () => {
@@ -459,7 +472,19 @@ test('groupTabGroups uses adaptive populated count buckets', () => {
     'count'
   );
 
-  assert.deepEqual(sections.map((section) => section.label), ['1 tab', '2–5 tabs', '6–10 tabs', '21–50 tabs', '101–200 tabs']);
+  assert.deepEqual(sections.map((section) => section.label), ['101–200 tabs', '21–50 tabs', '6–10 tabs', '2–5 tabs', '1 tab']);
+  assert.deepEqual(
+    groupTabGroups(
+      [
+        { label: 'one', tabs: makeTabs(1) },
+        { label: 'seven', tabs: makeTabs(7) },
+        { label: 'twenty-five', tabs: makeTabs(25) }
+      ],
+      'count',
+      { direction: 'asc' }
+    ).map((section) => section.label),
+    ['1 tab', '6–10 tabs', '21–50 tabs']
+  );
 });
 
 test('groupTabGroups places recent cards into populated age ranges', () => {
@@ -479,6 +504,18 @@ test('groupTabGroups places recent cards into populated age ranges', () => {
 
   assert.deepEqual(sections.map((section) => section.label), ['< 1h', '6–12h', '3d–1w', 'No activity']);
   assert.equal(sections[0].groups[0].label, 'fresh');
+  assert.deepEqual(
+    groupTabGroups(
+      [
+        { label: 'fresh', tabs: [{ id: 1 }], lastActivatedAt: now - 30 * 60 * 1000 },
+        { label: 'week', tabs: [{ id: 3 }], lastActivatedAt: now - 5 * day },
+        { label: 'unknown', tabs: [{ id: 4 }], lastActivatedAt: null }
+      ],
+      'recent',
+      { now, direction: 'asc' }
+    ).map((section) => section.label),
+    ['No activity', '3d–1w', '< 1h']
+  );
 });
 
 test('normalizePreferences falls back to the default theme', () => {

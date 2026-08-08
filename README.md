@@ -14,7 +14,7 @@
 - Uses a responsive packed-column card layout so uneven cards stack more tightly and waste less vertical space.
 - Starts domain, window, and saved-tab cards in a compact collapsed state; each card expands on demand.
 - Groups cards by name initial, tab-count range, or recent-activity range and remembers the last selected mode and direction.
-- Supports Asc/Desc independently for Name, Count, and Recent sorting modes.
+- Supports Asc/Desc independently for Name, Count, and Recent sorting modes; the direction reverses the visible section order while keeping Pinned first.
 - Always puts cards containing Chrome-pinned tabs into a top `Pinned` section; empty dynamic sections stay hidden.
 - Keeps a centered, search-engine-style global search box in the header and filters by title, URL, and domain text.
 - Uses a main-content toggle with three views:
@@ -60,7 +60,7 @@
 - Scope stays extension-native and lightweight: no framework, no server, no build step.
 - Search behavior is consistent filtering, not fuzzy reranking. Cards and rows disappear when they do not match the current query.
 - Cards default to name-initial sections, with persisted alternatives for adaptive tab-count and recent-activity sections.
-- Each mode remembers its own Asc/Desc choice. Defaults are Name Asc, Count Desc, and Recent Desc.
+- Each mode remembers its own Asc/Desc choice. Defaults are Name Asc, Count Desc, and Recent Desc. Direction changes the section order (`A → Z` / `Z → A`, low-to-high / high-to-low, and newest-to-oldest / oldest-to-newest) while keeping Pinned first.
 - Each sort mode keeps a top `Pinned` section when a card contains a Chrome-pinned tab. Name uses initials; count uses `1`, `2–5`, then populated adaptive ranges; recent uses populated windows from `< 1h` through `2w+`.
 - Card expansion is intentionally session-only so every new tab starts from the same compact overview.
 - The default main view is `Current open tabs`.

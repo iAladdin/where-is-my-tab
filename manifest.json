@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Where Is My Tab",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Replace Chrome's new tab page with a fast tab finder grouped by exact domain.",
   "icons": {
     "16": "assets/icons/icon16.png",

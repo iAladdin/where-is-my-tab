@@ -227,8 +227,16 @@ export function groupTabGroups(groups, sortId, options = {}) {
       : resolvedSortId === 'count'
         ? buildCountBucketDefinitions(regularGroups, itemsKey)
         : buildRecentBucketDefinitions(regularGroups, timestampKey, now);
+  const orderedBucketDefinitions =
+    resolvedSortId === 'recent'
+      ? direction === 'asc'
+        ? [...bucketDefinitions].reverse()
+        : bucketDefinitions
+      : direction === 'desc'
+        ? [...bucketDefinitions].reverse()
+        : bucketDefinitions;
 
-  for (const bucket of bucketDefinitions) {
+  for (const bucket of orderedBucketDefinitions) {
     const bucketGroups = regularGroups.filter((group) => bucket.matches(group));
     if (!bucketGroups.length) {
       continue;

@@ -7,6 +7,7 @@ import {
   createTrendDayKey,
   formatTrendMetricValue,
   formatRelativeTime,
+  GROUP_SORT_DIRECTIONS,
   GROUP_SORT_OPTIONS,
   groupTabGroups,
   getOtherTabIdsInGroup,
@@ -407,6 +408,14 @@ test('sortTabGroups supports name, count, and recent ordering without mutating i
     sortTabGroups(groups, 'recent').map((group) => group.label),
     ['gamma.example.com', 'beta.example.com', 'alpha.example.com']
   );
+  assert.deepEqual(
+    sortTabGroups(groups, 'count', { direction: 'asc' }).map((group) => group.label),
+    ['beta.example.com', 'gamma.example.com', 'alpha.example.com']
+  );
+  assert.deepEqual(
+    sortTabGroups(groups, 'name', { direction: 'desc' }).map((group) => group.label),
+    ['gamma.example.com', 'beta.example.com', 'alpha.example.com']
+  );
   assert.equal(groups[0].label, 'beta.example.com');
 });
 
@@ -477,10 +486,16 @@ test('normalizePreferences falls back to the default theme', () => {
   assert.equal(preferences.themeId, 'ink');
   assert.equal(preferences.openGroupView, 'window');
   assert.equal(preferences.groupSort, 'recent');
+  assert.deepEqual(preferences.groupSortDirections, { name: 'asc', count: 'desc', recent: 'desc' });
+  assert.equal(
+    normalizePreferences({ groupSort: 'recent', groupSortDirection: 'asc' }).groupSortDirections.recent,
+    'asc'
+  );
   assert.equal(normalizePreferences({ themeId: 'missing' }).themeId, 'mint');
   assert.equal(normalizePreferences(undefined).themeId, 'mint');
   assert.equal(normalizePreferences({ openGroupView: 'invalid' }).openGroupView, 'domain');
   assert.equal(normalizePreferences({ groupSort: 'invalid' }).groupSort, GROUP_SORT_OPTIONS[0].id);
+  assert.equal(GROUP_SORT_DIRECTIONS[0].id, 'asc');
 });
 
 test('formatRelativeTime reports a stable human-readable label', () => {

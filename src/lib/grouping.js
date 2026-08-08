@@ -4,7 +4,7 @@ export const PREFERENCES_STORAGE_KEY = 'uiPreferences';
 export const TRENDS_STORAGE_KEY = 'domainTrends';
 
 const SEE_IT_LATER_SCHEMA_VERSION = 1;
-const PREFERENCES_SCHEMA_VERSION = 3;
+const PREFERENCES_SCHEMA_VERSION = 4;
 const TRENDS_SCHEMA_VERSION = 1;
 const TREND_DAILY_RETENTION_DAYS = 400;
 const DAY_MS = 86_400_000;
@@ -27,6 +27,23 @@ export const GROUP_SORT_OPTIONS = Object.freeze([
 ]);
 
 const GROUP_SORT_IDS = new Set(GROUP_SORT_OPTIONS.map((option) => option.id));
+export const GROUP_SORT_DIRECTIONS = Object.freeze([
+  {
+    id: 'asc',
+    label: 'Ascending'
+  },
+  {
+    id: 'desc',
+    label: 'Descending'
+  }
+]);
+
+const GROUP_SORT_DIRECTION_IDS = new Set(GROUP_SORT_DIRECTIONS.map((direction) => direction.id));
+const DEFAULT_GROUP_SORT_DIRECTIONS = Object.freeze({
+  name: 'asc',
+  count: 'desc',
+  recent: 'desc'
+});
 
 const COUNT_BUCKET_BOUNDARIES = Object.freeze([10, 20, 50, 100, 200, 500, 1000]);
 const RECENT_BUCKETS = Object.freeze([
@@ -131,12 +148,27 @@ export function normalizePreferences(rawValue) {
   const themeId = rawValue?.themeId;
   const openGroupView = rawValue?.openGroupView;
   const groupSort = rawValue?.groupSort;
+  const groupSortDirections = rawValue?.groupSortDirections;
+  const legacyGroupSortDirection = rawValue?.groupSortDirection;
+  const normalizedGroupSort = GROUP_SORT_IDS.has(groupSort) ? groupSort : 'name';
+  const directionOverrides =
+    groupSortDirections && typeof groupSortDirections === 'object' ? groupSortDirections : {};
 
   return {
     version: PREFERENCES_SCHEMA_VERSION,
     themeId: THEMES.some((theme) => theme.id === themeId) ? themeId : DEFAULT_THEME_ID,
     openGroupView: OPEN_GROUP_VIEWS.has(openGroupView) ? openGroupView : 'domain',
-    groupSort: GROUP_SORT_IDS.has(groupSort) ? groupSort : 'name'
+    groupSort: normalizedGroupSort,
+    groupSortDirections: Object.fromEntries(
+      GROUP_SORT_OPTIONS.map((option) => [
+        option.id,
+        GROUP_SORT_DIRECTION_IDS.has(directionOverrides[option.id])
+          ? directionOverrides[option.id]
+          : option.id === normalizedGroupSort && GROUP_SORT_DIRECTION_IDS.has(legacyGroupSortDirection)
+            ? legacyGroupSortDirection
+            : DEFAULT_GROUP_SORT_DIRECTIONS[option.id]
+      ])
+    )
   };
 }
 
@@ -144,26 +176,28 @@ export function sortTabGroups(groups, sortId, options = {}) {
   const itemsKey = options.itemsKey ?? 'tabs';
   const timestampKey = options.timestampKey ?? 'lastActivatedAt';
   const resolvedSortId = GROUP_SORT_IDS.has(sortId) ? sortId : 'name';
+  const direction = resolveGroupSortDirection(resolvedSortId, options.direction);
 
   return [...groups].sort((left, right) => {
+    let comparison = 0;
+
     if (resolvedSortId === 'count') {
-      const countDifference = (right[itemsKey]?.length ?? 0) - (left[itemsKey]?.length ?? 0);
-      if (countDifference !== 0) {
-        return countDifference;
-      }
+      comparison = (left[itemsKey]?.length ?? 0) - (right[itemsKey]?.length ?? 0);
     }
 
-    if (resolvedSortId === 'recent') {
-      const timeDifference = sortTimestamps(right[timestampKey], left[timestampKey]);
-      if (timeDifference !== 0) {
-        return timeDifference;
-      }
+    if (resolvedSortId === 'recent' && comparison === 0) {
+      comparison = sortTimestamps(left[timestampKey], right[timestampKey]);
     }
 
-    return left.label.localeCompare(right.label, undefined, {
+    if (comparison !== 0) {
+      return direction === 'desc' ? -comparison : comparison;
+    }
+
+    const labelComparison = left.label.localeCompare(right.label, undefined, {
       numeric: true,
       sensitivity: 'base'
     });
+    return resolvedSortId === 'name' && direction === 'desc' ? -labelComparison : labelComparison;
   });
 }
 
@@ -173,6 +207,7 @@ export function groupTabGroups(groups, sortId, options = {}) {
   const timestampKey = options.timestampKey ?? 'lastActivatedAt';
   const now = typeof options.now === 'number' ? options.now : Date.now();
   const resolvedSortId = GROUP_SORT_IDS.has(sortId) ? sortId : 'name';
+  const direction = resolveGroupSortDirection(resolvedSortId, options.direction);
   const pinnedGroups = sourceGroups.filter((group) => isPinnedGroup(group, itemsKey, options.pinnedKey));
   const regularGroups = sourceGroups.filter((group) => !isPinnedGroup(group, itemsKey, options.pinnedKey));
   const sections = [];
@@ -182,7 +217,7 @@ export function groupTabGroups(groups, sortId, options = {}) {
       key: 'pinned',
       label: 'Pinned',
       isPinned: true,
-      groups: sortTabGroups(pinnedGroups, resolvedSortId, options)
+      groups: sortTabGroups(pinnedGroups, resolvedSortId, { ...options, direction })
     });
   }
 
@@ -205,6 +240,7 @@ export function groupTabGroups(groups, sortId, options = {}) {
       isPinned: false,
       groups: sortTabGroups(bucketGroups, resolvedSortId, {
         ...options,
+        direction,
         itemsKey,
         timestampKey
       })
@@ -212,6 +248,14 @@ export function groupTabGroups(groups, sortId, options = {}) {
   }
 
   return sections;
+}
+
+function resolveGroupSortDirection(sortId, direction) {
+  if (GROUP_SORT_DIRECTION_IDS.has(direction)) {
+    return direction;
+  }
+
+  return DEFAULT_GROUP_SORT_DIRECTIONS[sortId] ?? 'asc';
 }
 
 export function getOtherTabIdsInGroup(group, keptTabId) {

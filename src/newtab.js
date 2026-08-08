@@ -6,6 +6,7 @@ import {
   DEFAULT_PROFILE_BUCKET,
   formatRelativeTime,
   formatTrendMetricValue,
+  GROUP_SORT_DIRECTIONS,
   GROUP_SORT_OPTIONS,
   groupTabGroups,
   getTrendLeaders,
@@ -66,6 +67,7 @@ const state = {
   contentView: CONTENT_VIEWS.OPEN,
   openGroupView: normalizePreferences().openGroupView,
   groupSort: normalizePreferences().groupSort,
+  groupSortDirections: normalizePreferences().groupSortDirections,
   expandedCards: new Set(),
   trendMetric: TREND_METRICS[0].id,
   trendWindow: TREND_WINDOWS[0].id,
@@ -198,6 +200,7 @@ function bindUiEvents() {
       state.preferences = normalizePreferences(changes[PREFERENCES_STORAGE_KEY].newValue);
       state.openGroupView = state.preferences.openGroupView;
       state.groupSort = state.preferences.groupSort;
+      state.groupSortDirections = state.preferences.groupSortDirections;
     }
 
     render();
@@ -332,6 +335,7 @@ async function refreshSnapshotInputs() {
     state.preferences = normalizePreferences(stored[PREFERENCES_STORAGE_KEY]);
     state.openGroupView = state.preferences.openGroupView;
     state.groupSort = state.preferences.groupSort;
+    state.groupSortDirections = state.preferences.groupSortDirections;
   } catch (error) {
     console.error('Failed to refresh tab snapshot.', error);
     state.error = 'Could not read the current tab list.';
@@ -518,7 +522,9 @@ function createContentTab(label, view, count) {
 
 function renderOpenGroups(profile, query, trackedItemsByTabId) {
   const sourceGroups = state.openGroupView === OPEN_GROUP_VIEWS.WINDOW ? profile.windowGroups : profile.groups;
-  const sections = groupTabGroups(sourceGroups, state.groupSort);
+  const sections = groupTabGroups(sourceGroups, state.groupSort, {
+    direction: getCurrentGroupSortDirection()
+  });
   if (!sections.length) {
     return renderSectionEmpty(buildOpenGroupEmptyMessage(query));
   }
@@ -537,6 +543,7 @@ function renderLaterGroups(laterGroups, query) {
   }
 
   const sections = groupTabGroups(laterGroups, state.groupSort, {
+    direction: getCurrentGroupSortDirection(),
     itemsKey: 'items',
     timestampKey: 'lastTouchedAt'
   });
@@ -714,12 +721,30 @@ function renderGroupSortControl() {
     select.append(node);
   }
 
+  const directionSelect = document.createElement('select');
+  directionSelect.className = 'group-sort-direction';
+  directionSelect.setAttribute('aria-label', 'Sort direction');
+  for (const direction of GROUP_SORT_DIRECTIONS) {
+    const node = document.createElement('option');
+    node.value = direction.id;
+    node.textContent = direction.id === 'asc' ? 'Asc' : 'Desc';
+    node.selected = direction.id === getCurrentGroupSortDirection();
+    directionSelect.append(node);
+  }
+
   select.addEventListener('change', () => {
     void setGroupSort(select.value);
   });
+  directionSelect.addEventListener('change', () => {
+    void setGroupSortDirection(directionSelect.value);
+  });
 
-  label.append(text, select);
+  label.append(text, select, directionSelect);
   return label;
+}
+
+function getCurrentGroupSortDirection() {
+  return state.groupSortDirections?.[state.groupSort] ?? (state.groupSort === 'name' ? 'asc' : 'desc');
 }
 
 function buildOpenGroupEmptyMessage(query) {
@@ -2198,6 +2223,7 @@ async function setTheme(themeId) {
   state.preferences = nextPreferences;
   state.openGroupView = nextPreferences.openGroupView;
   state.groupSort = nextPreferences.groupSort;
+  state.groupSortDirections = nextPreferences.groupSortDirections;
   render();
 
   try {
@@ -2217,6 +2243,7 @@ async function setOpenGroupView(openGroupView) {
   state.preferences = nextPreferences;
   state.openGroupView = nextPreferences.openGroupView;
   state.groupSort = nextPreferences.groupSort;
+  state.groupSortDirections = nextPreferences.groupSortDirections;
   render();
 
   try {
@@ -2236,6 +2263,7 @@ async function setGroupSort(groupSort) {
   state.preferences = nextPreferences;
   state.openGroupView = nextPreferences.openGroupView;
   state.groupSort = nextPreferences.groupSort;
+  state.groupSortDirections = nextPreferences.groupSortDirections;
   render();
 
   try {
@@ -2244,6 +2272,29 @@ async function setGroupSort(groupSort) {
     });
   } catch (error) {
     console.error('Failed to persist card sorting.', error);
+  }
+}
+
+async function setGroupSortDirection(direction) {
+  const nextPreferences = normalizePreferences({
+    ...state.preferences,
+    groupSortDirections: {
+      ...state.preferences.groupSortDirections,
+      [state.groupSort]: direction
+    }
+  });
+  state.preferences = nextPreferences;
+  state.openGroupView = nextPreferences.openGroupView;
+  state.groupSort = nextPreferences.groupSort;
+  state.groupSortDirections = nextPreferences.groupSortDirections;
+  render();
+
+  try {
+    await chrome.storage.local.set({
+      [PREFERENCES_STORAGE_KEY]: nextPreferences
+    });
+  } catch (error) {
+    console.error('Failed to persist card sort direction.', error);
   }
 }
 

@@ -52,6 +52,8 @@ const elements = {
 };
 
 const extensionRoot = chrome.runtime.getURL('/');
+const FAVICON_CACHE_LIMIT = 256;
+const faviconLoadCache = new Map();
 
 const state = {
   query: '',
@@ -1134,7 +1136,8 @@ function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
       heading: renderGroupHeading(
         group.label,
         view === OPEN_GROUP_VIEWS.WINDOW ? null : group.faviconUrl,
-        buildOpenGroupMetaText(group, view)
+        buildOpenGroupMetaText(group, view),
+        buildGroupFaviconPageUrl(group, view)
       ),
       isExpanded,
       tabList
@@ -1181,7 +1184,12 @@ function renderLaterGroupCard(group, order) {
       card,
       cardStateKey,
       controlsId: tabListId,
-      heading: renderGroupHeading(group.label, group.faviconUrl, buildLaterGroupMetaText(group)),
+      heading: renderGroupHeading(
+        group.label,
+        group.faviconUrl,
+        buildLaterGroupMetaText(group),
+        group.items[0]?.url ?? ''
+      ),
       isExpanded,
       tabList
     }),
@@ -1281,7 +1289,7 @@ function readCssNumber(variableName, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function renderGroupHeading(label, faviconUrl, metaText) {
+function renderGroupHeading(label, faviconUrl, metaText, faviconPageUrl = '') {
   const heading = document.createElement('span');
   heading.className = 'group-heading';
 
@@ -1295,7 +1303,7 @@ function renderGroupHeading(label, faviconUrl, metaText) {
     tailLength: 18
   });
 
-  titleRow.append(renderFavicon(faviconUrl, label), domain);
+  titleRow.append(renderFavicon(faviconUrl, label, '', { fallbackPageUrl: faviconPageUrl }), domain);
 
   const meta = document.createElement('span');
   meta.className = 'group-meta';
@@ -1602,24 +1610,41 @@ function renderFavicon(faviconUrl, label, variantClass = '', options = {}) {
     return shell;
   }
 
+  const cacheEntry = getFaviconCacheEntry(source);
+  if (cacheEntry.status === 'error') {
+    return shell;
+  }
+
+  if (cacheEntry.status === 'loaded') {
+    shell.dataset.loaded = 'true';
+  } else {
+    cacheEntry.shells.add(shell);
+  }
+
   const image = document.createElement('img');
   image.className = 'favicon-image';
   image.alt = '';
   image.decoding = 'async';
   image.referrerPolicy = 'no-referrer';
-  image.src = source;
   image.addEventListener('load', () => {
-    shell.dataset.loaded = 'true';
+    settleFaviconCacheEntry(source, 'loaded');
   });
   image.addEventListener('error', () => {
+    settleFaviconCacheEntry(source, 'error');
     image.remove();
   });
+  image.src = source;
 
   shell.prepend(image);
   return shell;
 }
 
 function resolveFaviconSource(explicitFaviconUrl, fallbackPageUrl, size = 32) {
+  if (typeof fallbackPageUrl === 'string' && /^https?:\/\//i.test(fallbackPageUrl.trim())) {
+    const safeSize = Number.isFinite(size) ? Math.max(16, Math.round(size)) : 32;
+    return `${chrome.runtime.getURL('/_favicon/')}?pageUrl=${encodeURIComponent(fallbackPageUrl.trim())}&size=${safeSize}`;
+  }
+
   if (typeof explicitFaviconUrl === 'string' && explicitFaviconUrl.trim()) {
     return explicitFaviconUrl.trim();
   }
@@ -1632,12 +1657,60 @@ function resolveFaviconSource(explicitFaviconUrl, fallbackPageUrl, size = 32) {
   return `${chrome.runtime.getURL('/_favicon/')}?pageUrl=${encodeURIComponent(fallbackPageUrl)}&size=${safeSize}`;
 }
 
+function getFaviconCacheEntry(source) {
+  const existing = faviconLoadCache.get(source);
+  if (existing) {
+    return existing;
+  }
+
+  if (faviconLoadCache.size >= FAVICON_CACHE_LIMIT) {
+    for (const [cachedSource, cachedEntry] of faviconLoadCache) {
+      if (cachedEntry.status !== 'loading') {
+        faviconLoadCache.delete(cachedSource);
+        break;
+      }
+    }
+  }
+
+  const entry = {
+    status: 'loading',
+    shells: new Set()
+  };
+  faviconLoadCache.set(source, entry);
+  return entry;
+}
+
+function settleFaviconCacheEntry(source, status) {
+  const entry = faviconLoadCache.get(source);
+  if (!entry) {
+    return;
+  }
+
+  entry.status = status;
+  for (const shell of entry.shells) {
+    if (status === 'loaded') {
+      shell.dataset.loaded = 'true';
+    } else {
+      delete shell.dataset.loaded;
+    }
+  }
+  entry.shells.clear();
+}
+
 function buildTrendHostPageUrl(host) {
   if (typeof host !== 'string' || !host.trim()) {
     return '';
   }
 
   return `https://${host.trim().toLowerCase()}/`;
+}
+
+function buildGroupFaviconPageUrl(group, view) {
+  if (view === OPEN_GROUP_VIEWS.DOMAIN && typeof group.label === 'string' && group.label.trim()) {
+    return buildTrendHostPageUrl(group.label);
+  }
+
+  return group.tabs?.find((tab) => /^https?:\/\//i.test(tab.url ?? ''))?.url ?? '';
 }
 
 function createIconButton({ icon, label, tone = 'is-secondary', count = null, disabled = false, pressed, onClick }) {

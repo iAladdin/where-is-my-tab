@@ -31,7 +31,7 @@
   - single-line truncation with full values available on hover
 - Uses compact icon buttons for row and card actions, with accessible labels and native tooltips.
 - Uses a locally generated Lucide subset for consistent 24px line geometry without a CDN or runtime package dependency.
-- Shows a favicon slot on each domain card and falls back to a placeholder if the favicon is missing.
+- Shows a favicon slot on each domain card, resolves page icons through Chrome's internal `_favicon` service, and falls back to a stable placeholder if the icon is missing.
 - Adds `Merge to window` on open-tab domain cards to pull that group's tabs into one new window.
 - Adds `Close all` on open-tab cards so an entire domain or window card can be closed in one action.
 - Adds `Keep only this tab` to multi-tab domain groups so the selected page remains open while its same-host peers close.
@@ -330,6 +330,6 @@ Use this checklist in real Chrome after loading the unpacked extension.
 - `Open count` is the strongest trend metric because it is based on observed completed hostname loads. `Browsing time` and `Playback count` are both best-effort approximations of real usage signals.
 - `Browsing time` only accrues while Chrome has a focused window and the extension can maintain the active session. To avoid runaway overcounting after sleep/restart gaps, stale increments are capped.
 - `Playback count` depends on Chrome exposing a tab's `audible` transitions. If a site plays media without surfacing that state, the counter may under-report.
-- Favicon rendering depends on what Chrome exposes for the current tab snapshot. When no favicon URL is available, the UI falls back to a placeholder rather than trying a heavier fetch path.
+- Favicon rendering uses a small in-memory load-state cache so re-renders do not flash a placeholder after an icon has already loaded. When no icon is available, the UI keeps a stable placeholder rather than retrying a heavier fetch path.
 - The card layout now uses stable source-order column packing to reduce vertical whitespace. It preserves predictable hostname-based ordering, but on uneven card heights the visual scan order is no longer a strict left-to-right, row-by-row grid.
 - The repeatable automated validation path does not install the extension into a live Chrome session. Real extension loading and new-tab override verification should be done with the manual `Load unpacked` steps above.

@@ -4,12 +4,29 @@ export const PREFERENCES_STORAGE_KEY = 'uiPreferences';
 export const TRENDS_STORAGE_KEY = 'domainTrends';
 
 const SEE_IT_LATER_SCHEMA_VERSION = 1;
-const PREFERENCES_SCHEMA_VERSION = 1;
+const PREFERENCES_SCHEMA_VERSION = 2;
 const TRENDS_SCHEMA_VERSION = 1;
 const TREND_DAILY_RETENTION_DAYS = 400;
 const DAY_MS = 86_400_000;
 const DEFAULT_EMPTY_TITLE = 'Untitled tab';
 const OPEN_GROUP_VIEWS = new Set(['domain', 'window']);
+
+export const GROUP_SORT_OPTIONS = Object.freeze([
+  {
+    id: 'name',
+    label: 'Name'
+  },
+  {
+    id: 'count',
+    label: 'Most tabs'
+  },
+  {
+    id: 'recent',
+    label: 'Recently active'
+  }
+]);
+
+const GROUP_SORT_IDS = new Set(GROUP_SORT_OPTIONS.map((option) => option.id));
 
 export const TREND_METRICS = Object.freeze([
   {
@@ -101,12 +118,55 @@ export function getTrendWindow(windowId) {
 export function normalizePreferences(rawValue) {
   const themeId = rawValue?.themeId;
   const openGroupView = rawValue?.openGroupView;
+  const groupSort = rawValue?.groupSort;
 
   return {
     version: PREFERENCES_SCHEMA_VERSION,
     themeId: THEMES.some((theme) => theme.id === themeId) ? themeId : DEFAULT_THEME_ID,
-    openGroupView: OPEN_GROUP_VIEWS.has(openGroupView) ? openGroupView : 'domain'
+    openGroupView: OPEN_GROUP_VIEWS.has(openGroupView) ? openGroupView : 'domain',
+    groupSort: GROUP_SORT_IDS.has(groupSort) ? groupSort : 'name'
   };
+}
+
+export function sortTabGroups(groups, sortId, options = {}) {
+  const itemsKey = options.itemsKey ?? 'tabs';
+  const timestampKey = options.timestampKey ?? 'lastActivatedAt';
+  const resolvedSortId = GROUP_SORT_IDS.has(sortId) ? sortId : 'name';
+
+  return [...groups].sort((left, right) => {
+    if (resolvedSortId === 'count') {
+      const countDifference = (right[itemsKey]?.length ?? 0) - (left[itemsKey]?.length ?? 0);
+      if (countDifference !== 0) {
+        return countDifference;
+      }
+    }
+
+    if (resolvedSortId === 'recent') {
+      const timeDifference = sortTimestamps(right[timestampKey], left[timestampKey]);
+      if (timeDifference !== 0) {
+        return timeDifference;
+      }
+    }
+
+    return left.label.localeCompare(right.label, undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    });
+  });
+}
+
+export function getOtherTabIdsInGroup(group, keptTabId) {
+  if (!Number.isInteger(keptTabId) || !Array.isArray(group?.tabs)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      group.tabs
+        .map((tab) => tab?.id)
+        .filter((tabId) => Number.isInteger(tabId) && tabId !== keptTabId)
+    )
+  );
 }
 
 export function normalizeSeeItLaterStore(rawValue) {

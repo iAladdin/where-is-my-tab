@@ -12,6 +12,8 @@
 - Keeps subdomains separate, so `example.com` and `docs.example.com` never collapse together.
 - Uses an icon-led glassmorphism visual system with a centered hero search bar, a compact theme-swatch dock, and frosted card surfaces across all views.
 - Uses a responsive packed-column card layout so uneven cards stack more tightly and waste less vertical space.
+- Starts domain, window, and saved-tab cards in a compact collapsed state; each card expands on demand.
+- Sorts cards by name, tab count, or recent activity and remembers the last selected order.
 - Keeps a centered, search-engine-style global search box in the header and filters by title, URL, and domain text.
 - Uses a main-content toggle with three views:
   - `Current open tabs`
@@ -27,10 +29,11 @@
   - a top-right badge for the current window or saved state
   - single-line truncation with full values available on hover
 - Uses compact icon buttons for row and card actions, with accessible labels and native tooltips.
-- Uses a locally generated, nine-icon Lucide subset for consistent 24px line geometry without a CDN or runtime package dependency.
+- Uses a locally generated Lucide subset for consistent 24px line geometry without a CDN or runtime package dependency.
 - Shows a favicon slot on each domain card and falls back to a placeholder if the favicon is missing.
 - Adds `Merge to window` on open-tab domain cards to pull that group's tabs into one new window.
 - Adds `Close all` on open-tab cards so an entire domain or window card can be closed in one action.
+- Adds `Keep only this tab` to multi-tab domain groups so the selected page remains open while its same-host peers close.
 - Adds `Gather solo tabs` at the profile level to merge one-tab windows into one window.
 - Tracks last-switched timestamps in the background service worker and shows them when available.
 - Adds a `Trends` leaderboard that ranks exact hostnames across four time windows:
@@ -54,7 +57,8 @@
 
 - Scope stays extension-native and lightweight: no framework, no server, no build step.
 - Search behavior is consistent filtering, not fuzzy reranking. Cards and rows disappear when they do not match the current query.
-- Domain groups are sorted by exact hostname label so close actions do not trigger activity-based reshuffling.
+- Cards default to name order, with persisted alternatives for largest groups and most recent activity.
+- Card expansion is intentionally session-only so every new tab starts from the same compact overview.
 - The default main view is `Current open tabs`.
 - Inside `Current open tabs`, `Domain` remains the default card view and `Window` is an alternate persisted perspective.
 - `Trends` is the middle main-content view. Its two switch groups are intentionally narrow:
@@ -95,7 +99,7 @@
 - `src/newtab.js`
   New-tab page controller. Reads Chrome tabs and storage, builds the snapshot, renders the three main views, handles icon actions, and runs tab/window commands.
 - `src/background.js`
-  Background service worker that records last-switched timestamps, keeps see-it-later links in sync when tabs close or are replaced, tracks forward-looking hostname trends, and resolves the best-effort current profile label.
+  Background service worker that records last-switched timestamps, keeps see-it-later links in sync when tabs close or are replaced, and tracks forward-looking hostname trends.
 - `src/lib/grouping.js`
   Pure snapshot, grouping, formatting, theme, favicon, see-it-later, and trends aggregation helpers shared by runtime code and tests.
 - `src/styles.css`
@@ -226,9 +230,12 @@ Use this checklist in real Chrome after loading the unpacked extension.
    - `mail.google.com`
 8. Confirm the `github.com` card contains both GitHub tabs when they share the same hostname.
 9. Confirm subdomains stay separate, so `docs.github.com` is not merged into `github.com`.
-10. Search for `openai-openapi` and confirm only the matching GitHub row remains visible.
-11. Click that row and confirm Chrome focuses the existing tab instead of opening a duplicate.
-12. Open the extension page again and confirm that row now shows a `Last switched ...` label.
+10. Confirm cards start collapsed, then expand the `github.com` card from its heading.
+11. On one GitHub row, use `Keep only this tab` and confirm the selected page remains while the other `github.com` tabs close.
+12. Change `Sort by` to `Most tabs`, open another new tab page, and confirm the preference persists.
+13. Search for `openai-openapi` and confirm only the matching GitHub row remains visible.
+14. Click that row and confirm Chrome focuses the existing tab instead of opening a duplicate.
+15. Open the extension page again and confirm that row now shows a `Last switched ...` label.
 
 ### UI Polish
 

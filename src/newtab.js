@@ -6,13 +6,16 @@ import {
   DEFAULT_PROFILE_BUCKET,
   formatRelativeTime,
   formatTrendMetricValue,
+  GROUP_SORT_OPTIONS,
   getTrendLeaders,
+  getOtherTabIdsInGroup,
   getWeeklyTrendBoards,
   normalizePreferences,
   normalizeSeeItLaterStore,
   normalizeTrendsStore,
   PREFERENCES_STORAGE_KEY,
   SEE_IT_LATER_STORAGE_KEY,
+  sortTabGroups,
   TRENDS_STORAGE_KEY,
   TREND_METRICS,
   TREND_WINDOWS,
@@ -60,6 +63,8 @@ const state = {
   profile: DEFAULT_PROFILE_BUCKET,
   contentView: CONTENT_VIEWS.OPEN,
   openGroupView: normalizePreferences().openGroupView,
+  groupSort: normalizePreferences().groupSort,
+  expandedCards: new Set(),
   trendMetric: TREND_METRICS[0].id,
   trendWindow: TREND_WINDOWS[0].id,
   snapshot: null,
@@ -190,6 +195,7 @@ function bindUiEvents() {
     if (changes[PREFERENCES_STORAGE_KEY]) {
       state.preferences = normalizePreferences(changes[PREFERENCES_STORAGE_KEY].newValue);
       state.openGroupView = state.preferences.openGroupView;
+      state.groupSort = state.preferences.groupSort;
     }
 
     render();
@@ -323,6 +329,7 @@ async function refreshSnapshotInputs() {
     state.trends = normalizeTrendsStore(stored[TRENDS_STORAGE_KEY]);
     state.preferences = normalizePreferences(stored[PREFERENCES_STORAGE_KEY]);
     state.openGroupView = state.preferences.openGroupView;
+    state.groupSort = state.preferences.groupSort;
   } catch (error) {
     console.error('Failed to refresh tab snapshot.', error);
     state.error = 'Could not read the current tab list.';
@@ -438,6 +445,10 @@ function renderProfile(profile, laterGroups, query, trackedItemsByTabId) {
     primaryControls.append(renderOpenViewControl());
   }
 
+  if (state.contentView !== CONTENT_VIEWS.TRENDS) {
+    primaryControls.append(renderGroupSortControl());
+  }
+
   primaryControls.append(controls);
   actionRail.append(primaryControls);
 
@@ -504,7 +515,8 @@ function createContentTab(label, view, count) {
 }
 
 function renderOpenGroups(profile, query, trackedItemsByTabId) {
-  const groups = state.openGroupView === OPEN_GROUP_VIEWS.WINDOW ? profile.windowGroups : profile.groups;
+  const sourceGroups = state.openGroupView === OPEN_GROUP_VIEWS.WINDOW ? profile.windowGroups : profile.groups;
+  const groups = sortTabGroups(sourceGroups, state.groupSort);
   if (!groups.length) {
     return renderSectionEmpty(buildOpenGroupEmptyMessage(query));
   }
@@ -530,7 +542,10 @@ function renderLaterGroups(laterGroups, query) {
   const grid = document.createElement('div');
   grid.className = 'masonry-grid';
 
-  laterGroups.forEach((group, index) => {
+  sortTabGroups(laterGroups, state.groupSort, {
+    itemsKey: 'items',
+    timestampKey: 'lastTouchedAt'
+  }).forEach((group, index) => {
     grid.append(renderLaterGroupCard(group, index));
   });
 
@@ -643,6 +658,34 @@ function renderOpenViewControl() {
   );
   switcher.classList.add('is-card-view');
   return switcher;
+}
+
+function renderGroupSortControl() {
+  const label = document.createElement('label');
+  label.className = 'group-sort-control';
+
+  const text = document.createElement('span');
+  text.className = 'group-sort-label';
+  text.textContent = 'Sort by';
+
+  const select = document.createElement('select');
+  select.className = 'group-sort-select';
+  select.setAttribute('aria-label', 'Sort cards by');
+
+  for (const option of GROUP_SORT_OPTIONS) {
+    const node = document.createElement('option');
+    node.value = option.id;
+    node.textContent = option.label;
+    node.selected = option.id === state.groupSort;
+    select.append(node);
+  }
+
+  select.addEventListener('change', () => {
+    void setGroupSort(select.value);
+  });
+
+  label.append(text, select);
+  return label;
 }
 
 function buildOpenGroupEmptyMessage(query) {
@@ -1039,25 +1082,47 @@ function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
   card.className = 'group-card';
   card.dataset.cardOrder = String(order);
 
+  const cardStateKey = `open:${view}:${group.key}`;
+  const tabListId = `open-card-tabs-${order}`;
+  const isExpanded = state.expandedCards.has(cardStateKey);
+
   const header = document.createElement('header');
   header.className = 'group-card-header';
 
+  const tabList = document.createElement('div');
+  tabList.className = 'tab-list';
+  tabList.id = tabListId;
+  tabList.hidden = !isExpanded;
+
   header.append(
-    renderGroupHeading(
-      group.label,
-      view === OPEN_GROUP_VIEWS.WINDOW ? null : group.faviconUrl,
-      buildOpenGroupMetaText(group, view)
-    ),
+    renderGroupCardToggle({
+      card,
+      cardStateKey,
+      controlsId: tabListId,
+      heading: renderGroupHeading(
+        group.label,
+        view === OPEN_GROUP_VIEWS.WINDOW ? null : group.faviconUrl,
+        buildOpenGroupMetaText(group, view)
+      ),
+      isExpanded,
+      tabList
+    }),
     renderOpenGroupActions(group, view)
   );
 
-  const tabList = document.createElement('div');
-  tabList.className = 'tab-list';
-
   for (const tab of group.tabs) {
-    tabList.append(renderOpenTabRow(tab, trackedItemsByTabId.get(tab.id) ?? null));
+    tabList.append(
+      renderOpenTabRow(tab, trackedItemsByTabId.get(tab.id) ?? null, {
+        keepOnly:
+          view === OPEN_GROUP_VIEWS.DOMAIN && group.tabs.length > 1
+            ? () => closeOtherTabsInGroup(group, tab.id)
+            : null,
+        groupLabel: group.label
+      })
+    );
   }
 
+  card.classList.toggle('is-expanded', isExpanded);
   card.append(header, tabList);
   return card;
 }
@@ -1067,23 +1132,68 @@ function renderLaterGroupCard(group, order) {
   card.className = 'group-card is-later-group';
   card.dataset.cardOrder = String(order);
 
+  const cardStateKey = `later:${group.key}`;
+  const tabListId = `later-card-tabs-${order}`;
+  const isExpanded = state.expandedCards.has(cardStateKey);
+
   const header = document.createElement('header');
   header.className = 'group-card-header';
 
-  header.append(
-    renderGroupHeading(group.label, group.faviconUrl, buildLaterGroupMetaText(group)),
-    renderLaterGroupStats(group)
-  );
-
   const tabList = document.createElement('div');
   tabList.className = 'tab-list';
+  tabList.id = tabListId;
+  tabList.hidden = !isExpanded;
+
+  header.append(
+    renderGroupCardToggle({
+      card,
+      cardStateKey,
+      controlsId: tabListId,
+      heading: renderGroupHeading(group.label, group.faviconUrl, buildLaterGroupMetaText(group)),
+      isExpanded,
+      tabList
+    }),
+    renderLaterGroupStats(group)
+  );
 
   for (const item of group.items) {
     tabList.append(renderLaterItemRow(item));
   }
 
+  card.classList.toggle('is-expanded', isExpanded);
   card.append(header, tabList);
   return card;
+}
+
+function renderGroupCardToggle({ card, cardStateKey, controlsId, heading, isExpanded, tabList }) {
+  const button = document.createElement('button');
+  button.className = 'group-card-toggle';
+  button.type = 'button';
+  button.setAttribute('aria-expanded', String(isExpanded));
+  button.setAttribute('aria-controls', controlsId);
+  button.title = isExpanded ? 'Collapse card' : 'Expand card';
+
+  const icon = createIcon('chevron');
+  icon.classList.add('group-toggle-icon');
+  button.append(heading, icon);
+
+  button.addEventListener('click', () => {
+    const nextExpanded = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(nextExpanded));
+    button.title = nextExpanded ? 'Collapse card' : 'Expand card';
+    card.classList.toggle('is-expanded', nextExpanded);
+    tabList.hidden = !nextExpanded;
+
+    if (nextExpanded) {
+      state.expandedCards.add(cardStateKey);
+    } else {
+      state.expandedCards.delete(cardStateKey);
+    }
+
+    schedulePackedLayout();
+  });
+
+  return button;
 }
 
 function schedulePackedLayout() {
@@ -1140,13 +1250,13 @@ function readCssNumber(variableName, fallback) {
 }
 
 function renderGroupHeading(label, faviconUrl, metaText) {
-  const heading = document.createElement('div');
+  const heading = document.createElement('span');
   heading.className = 'group-heading';
 
-  const titleRow = document.createElement('div');
+  const titleRow = document.createElement('span');
   titleRow.className = 'group-title-row';
 
-  const domain = document.createElement('h3');
+  const domain = document.createElement('span');
   domain.className = 'group-domain';
   setNodeText(domain, label, {
     maxLength: 54,
@@ -1155,7 +1265,7 @@ function renderGroupHeading(label, faviconUrl, metaText) {
 
   titleRow.append(renderFavicon(faviconUrl, label), domain);
 
-  const meta = document.createElement('p');
+  const meta = document.createElement('span');
   meta.className = 'group-meta';
   meta.textContent = metaText;
   meta.title = metaText;
@@ -1229,7 +1339,7 @@ function renderLaterGroupStats(group) {
   return stats;
 }
 
-function renderOpenTabRow(tab, trackedItem) {
+function renderOpenTabRow(tab, trackedItem, options = {}) {
   const row = document.createElement('article');
   row.className = `tab-row${tab.active ? ' is-active' : ''}${tab.inactive ? ' is-inactive' : ''}${trackedItem ? ' is-tracked' : ''}`;
 
@@ -1255,6 +1365,17 @@ function renderOpenTabRow(tab, trackedItem) {
 
   const actions = document.createElement('div');
   actions.className = 'tab-actions';
+
+  if (typeof options.keepOnly === 'function') {
+    actions.append(
+      createIconButton({
+        icon: 'dedupe',
+        label: `Keep only ${tab.title} in ${options.groupLabel}`,
+        tone: 'is-secondary',
+        onClick: options.keepOnly
+      })
+    );
+  }
 
   const bookmarkButton = createIconButton({
     icon: 'bookmark',
@@ -1854,6 +1975,10 @@ async function closeTab(tabId) {
   await closeTabs([tabId]);
 }
 
+async function closeOtherTabsInGroup(group, keptTabId) {
+  await closeTabs(getOtherTabIdsInGroup(group, keptTabId));
+}
+
 async function closeTabs(tabIds) {
   const validTabIds = Array.from(
     new Set(tabIds.filter((tabId) => typeof tabId === 'number' && Number.isInteger(tabId)))
@@ -1967,6 +2092,7 @@ async function setTheme(themeId) {
   });
   state.preferences = nextPreferences;
   state.openGroupView = nextPreferences.openGroupView;
+  state.groupSort = nextPreferences.groupSort;
   render();
 
   try {
@@ -1985,6 +2111,7 @@ async function setOpenGroupView(openGroupView) {
   });
   state.preferences = nextPreferences;
   state.openGroupView = nextPreferences.openGroupView;
+  state.groupSort = nextPreferences.groupSort;
   render();
 
   try {
@@ -1993,6 +2120,25 @@ async function setOpenGroupView(openGroupView) {
     });
   } catch (error) {
     console.error('Failed to persist open group view.', error);
+  }
+}
+
+async function setGroupSort(groupSort) {
+  const nextPreferences = normalizePreferences({
+    ...state.preferences,
+    groupSort
+  });
+  state.preferences = nextPreferences;
+  state.openGroupView = nextPreferences.openGroupView;
+  state.groupSort = nextPreferences.groupSort;
+  render();
+
+  try {
+    await chrome.storage.local.set({
+      [PREFERENCES_STORAGE_KEY]: nextPreferences
+    });
+  } catch (error) {
+    console.error('Failed to persist card sorting.', error);
   }
 }
 

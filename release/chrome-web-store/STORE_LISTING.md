@@ -28,7 +28,8 @@ What it does:
 - Groups tabs by exact hostname so subdomains stay separate
 - Lets you search across tab titles, URLs, and domains
 - Switches directly to the existing tab you want
-- Supports quick close, save-for-later, and merge-to-window actions
+- Uses compact, expandable cards with a remembered sort order
+- Supports quick close, keep-only-this-page, save-for-later, and merge-to-window actions
 - Tracks lightweight tab activity so you can review weekly hostname trends over time
 
 Trends include:
@@ -51,7 +52,7 @@ This extension helps users find, reopen, organize, and review their existing Chr
 ## Assets Prepared In This Repo
 
 - Upload package:
-  `release/chrome-web-store/where-is-my-tab-0.1.0-chrome-web-store.zip`
+  `release/chrome-web-store/where-is-my-tab-0.2.0-chrome-web-store.zip`
 - Extension icons:
   `assets/icons/icon16.png`
   `assets/icons/icon48.png`

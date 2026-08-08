@@ -3,8 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   Bookmark,
+  ChevronDown,
   Combine,
   Copy,
+  CopyMinus,
   ExternalLink,
   Layers3,
   Search,
@@ -20,11 +22,13 @@ const icons = {
   search: Search,
   close: X,
   bookmark: Bookmark,
+  chevron: ChevronDown,
   open: ExternalLink,
   merge: Combine,
   stack: Layers3,
   trend: TrendingUp,
   copy: Copy,
+  dedupe: CopyMinus,
   trash: Trash2
 };
 

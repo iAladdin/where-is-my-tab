@@ -7,13 +7,16 @@ import {
   createTrendDayKey,
   formatTrendMetricValue,
   formatRelativeTime,
+  GROUP_SORT_OPTIONS,
+  getOtherTabIdsInGroup,
   getTrendCountsForWindow,
   getTrendLeaders,
   getWeeklyTrendBoards,
   normalizePreferences,
   normalizeTrendsStore,
   parseTabLocation,
-  recordTrendMetric
+  recordTrendMetric,
+  sortTabGroups
 } from '../src/lib/grouping.js';
 
 test('parseTabLocation uses exact hostnames and preserves subdomains', () => {
@@ -384,12 +387,51 @@ test('formatTrendMetricValue returns readable metric labels', () => {
   assert.equal(formatTrendMetricValue('openCount', 1), '1 open');
 });
 
+test('sortTabGroups supports name, count, and recent ordering without mutating input', () => {
+  const groups = [
+    { label: 'beta.example.com', tabs: [{ id: 1 }], lastActivatedAt: 30_000 },
+    { label: 'alpha.example.com', tabs: [{ id: 2 }, { id: 3 }], lastActivatedAt: 10_000 },
+    { label: 'gamma.example.com', tabs: [{ id: 4 }], lastActivatedAt: 50_000 }
+  ];
+
+  assert.deepEqual(
+    sortTabGroups(groups, 'name').map((group) => group.label),
+    ['alpha.example.com', 'beta.example.com', 'gamma.example.com']
+  );
+  assert.deepEqual(
+    sortTabGroups(groups, 'count').map((group) => group.label),
+    ['alpha.example.com', 'beta.example.com', 'gamma.example.com']
+  );
+  assert.deepEqual(
+    sortTabGroups(groups, 'recent').map((group) => group.label),
+    ['gamma.example.com', 'beta.example.com', 'alpha.example.com']
+  );
+  assert.equal(groups[0].label, 'beta.example.com');
+});
+
+test('getOtherTabIdsInGroup keeps the selected tab and returns unique peers to close', () => {
+  assert.deepEqual(
+    getOtherTabIdsInGroup(
+      {
+        tabs: [{ id: 10 }, { id: 11 }, { id: 11 }, { id: 12 }, { id: null }]
+      },
+      11
+    ),
+    [10, 12]
+  );
+  assert.deepEqual(getOtherTabIdsInGroup({ tabs: [{ id: 10 }] }, 10), []);
+  assert.deepEqual(getOtherTabIdsInGroup(undefined, 10), []);
+});
+
 test('normalizePreferences falls back to the default theme', () => {
-  assert.equal(normalizePreferences({ themeId: 'ink', openGroupView: 'window' }).themeId, 'ink');
-  assert.equal(normalizePreferences({ themeId: 'ink', openGroupView: 'window' }).openGroupView, 'window');
+  const preferences = normalizePreferences({ themeId: 'ink', openGroupView: 'window', groupSort: 'recent' });
+  assert.equal(preferences.themeId, 'ink');
+  assert.equal(preferences.openGroupView, 'window');
+  assert.equal(preferences.groupSort, 'recent');
   assert.equal(normalizePreferences({ themeId: 'missing' }).themeId, 'mint');
   assert.equal(normalizePreferences(undefined).themeId, 'mint');
   assert.equal(normalizePreferences({ openGroupView: 'invalid' }).openGroupView, 'domain');
+  assert.equal(normalizePreferences({ groupSort: 'invalid' }).groupSort, GROUP_SORT_OPTIONS[0].id);
 });
 
 test('formatRelativeTime reports a stable human-readable label', () => {

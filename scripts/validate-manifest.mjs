@@ -59,6 +59,9 @@ assert.match(backgroundJs, /chrome\.alarms/, 'Expected background alarm-based tr
 assert.doesNotMatch(backgroundJs, /chrome\.identity/, 'Expected no Chrome identity API usage.');
 assert.match(newtabJs, /CONTENT_VIEWS\.\s*TRENDS/, 'Expected a Trends content view in the new-tab UI.');
 assert.match(newtabJs, /getTrendLeaders/, 'Expected Trends leaderboard rendering in the new-tab UI.');
+assert.match(newtabJs, /renderGroupSortControl/, 'Expected the persisted card sort control.');
+assert.match(newtabJs, /expandedCards/, 'Expected compact expandable card state.');
+assert.match(newtabJs, /closeOtherTabsInGroup/, 'Expected the keep-only-this-tab action.');
 assert.match(newtabJs, /import \{ createIcon \} from '\.\/lib\/icons\.js'/, 'Expected Lucide icon helper wiring.');
 assert.match(iconsJs, /Generated .* from Lucide/, 'Expected the generated Lucide icon subset.');
 assert.doesNotMatch(newtabJs, /const ICONS\s*=/, 'Expected no hand-authored icon registry in the UI controller.');

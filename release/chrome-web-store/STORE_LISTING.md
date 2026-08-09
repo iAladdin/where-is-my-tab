@@ -27,7 +27,7 @@ What it does:
 - Scans tabs across all Chrome windows in the current Chrome profile
 - Groups tabs by exact hostname so subdomains stay separate
 - Lets you search across tab titles, URLs, and domains
-- Shows short local page descriptions when accessible webpage metadata is available
+- Shows short local page descriptions, with visible article/main/body text as a fallback when metadata is unavailable
 - Switches directly to the existing tab you want
 - Uses compact, expandable cards with remembered Name, Count, Recent, and Asc/Desc choices
 - Keeps Chrome-pinned tab groups in a top Pinned section and hides empty dynamic ranges
@@ -54,7 +54,7 @@ This extension helps users find, reopen, organize, and review their existing Chr
 ## Assets Prepared In This Repo
 
 - Upload package:
-  `release/chrome-web-store/where-is-my-tab-0.3.4-chrome-web-store.zip`
+  `release/chrome-web-store/where-is-my-tab-0.3.5-chrome-web-store.zip`
 - Extension icons:
   `assets/icons/icon16.png`
   `assets/icons/icon48.png`

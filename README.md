@@ -32,7 +32,7 @@
   - single-line truncation with full values available on hover
 - Uses compact icon buttons for row and card actions, with accessible labels and native tooltips.
 - Uses a compact three-zone tab row: title/URL/last-seen in the main lane, page description plus right-aligned metadata below, and a vertical action rail on the far right.
-- Reads only the standard page-description metadata from accessible HTTP(S) tabs and keeps the value local; pages that block script access show a stable fallback.
+- Reads a short local description from accessible HTTP(S) tabs, falling back from standard metadata to visible article/main/body text; pages that block script access show a stable fallback.
 - Uses a locally generated Lucide subset for consistent 24px line geometry without a CDN or runtime package dependency.
 - Shows a favicon slot on each domain card, resolves page icons through Chrome's internal `_favicon` service, and falls back to a stable placeholder if the icon is missing.
 - Adds `Merge to window` on open-tab domain cards to pull that group's tabs into one new window.
@@ -336,4 +336,4 @@ Use this checklist in real Chrome after loading the unpacked extension.
 - Favicon rendering uses a small in-memory load-state cache so re-renders do not flash a placeholder after an icon has already loaded. When no icon is available, the UI keeps a stable placeholder rather than retrying a heavier fetch path.
 - The card layout now uses stable source-order column packing to reduce vertical whitespace. It preserves predictable hostname-based ordering, but on uneven card heights the visual scan order is no longer a strict left-to-right, row-by-row grid.
 - The repeatable automated validation path does not install the extension into a live Chrome session. Real extension loading and new-tab override verification should be done with the manual `Load unpacked` steps above.
-- Page descriptions are best-effort. Chrome-restricted pages, pages without a standard description tag, and tabs that block extension script access show `No page description available`.
+- Page descriptions are best-effort. Chrome-restricted pages, pages without readable metadata or visible text, and tabs that block extension script access show `No page description available`.

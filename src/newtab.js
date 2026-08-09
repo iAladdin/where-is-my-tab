@@ -439,7 +439,30 @@ function readPageDescription() {
   const descriptionNode =
     document.querySelector('meta[name="description" i]') ??
     document.querySelector('meta[property="og:description" i]');
-  return descriptionNode?.getAttribute('content') ?? '';
+  const metadata = descriptionNode?.getAttribute('content')?.trim() ?? '';
+  if (metadata) {
+    return metadata;
+  }
+
+  const contentSelectors = ['article', 'main', '[role="main"]'];
+  const contentNode = contentSelectors
+    .map((selector) => document.querySelector(selector))
+    .find((node) => node?.innerText?.trim().length >= 80);
+
+  if (contentNode) {
+    return contentNode.innerText;
+  }
+
+  const body = document.body;
+  if (!body) {
+    return '';
+  }
+
+  const clone = body.cloneNode(true);
+  clone
+    .querySelectorAll('script, style, noscript, template, svg, canvas, nav, header, footer, aside, form, button, [aria-hidden="true"]')
+    .forEach((node) => node.remove());
+  return clone.innerText || clone.textContent || '';
 }
 
 function normalizePageDescription(value) {

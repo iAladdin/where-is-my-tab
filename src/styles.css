@@ -748,6 +748,14 @@ button {
   background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
 }
 
+.group-card-toggle.is-static {
+  cursor: default;
+}
+
+.group-card-toggle.is-static:hover {
+  background: transparent;
+}
+
 .group-card-toggle:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 28%, transparent);
   outline-offset: 2px;

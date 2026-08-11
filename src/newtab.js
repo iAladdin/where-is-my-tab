@@ -1248,7 +1248,8 @@ function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
 
   const cardStateKey = `open:${view}:${group.key}`;
   const tabListId = `open-card-tabs-${order}`;
-  const isExpanded = state.expandedCards.has(cardStateKey);
+  const isSingleTabGroup = group.tabs.length === 1;
+  const isExpanded = isSingleTabGroup || state.expandedCards.has(cardStateKey);
 
   const header = document.createElement('header');
   header.className = 'group-card-header';
@@ -1270,7 +1271,8 @@ function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
         buildGroupFaviconPageUrl(group, view)
       ),
       isExpanded,
-      tabList
+      tabList,
+      collapsible: !isSingleTabGroup
     }),
     renderOpenGroupActions(group, view)
   );
@@ -1299,7 +1301,8 @@ function renderLaterGroupCard(group, order) {
 
   const cardStateKey = `later:${group.key}`;
   const tabListId = `later-card-tabs-${order}`;
-  const isExpanded = state.expandedCards.has(cardStateKey);
+  const isSingleTabGroup = group.items.length === 1;
+  const isExpanded = isSingleTabGroup || state.expandedCards.has(cardStateKey);
 
   const header = document.createElement('header');
   header.className = 'group-card-header';
@@ -1321,7 +1324,8 @@ function renderLaterGroupCard(group, order) {
         group.items[0]?.url ?? ''
       ),
       isExpanded,
-      tabList
+      tabList,
+      collapsible: !isSingleTabGroup
     }),
     renderLaterGroupStats(group)
   );
@@ -1335,22 +1339,28 @@ function renderLaterGroupCard(group, order) {
   return card;
 }
 
-function renderGroupCardToggle({ card, cardStateKey, controlsId, heading, isExpanded, tabList }) {
-  const button = document.createElement('button');
-  button.className = 'group-card-toggle';
-  button.type = 'button';
-  button.setAttribute('aria-expanded', String(isExpanded));
-  button.setAttribute('aria-controls', controlsId);
-  button.title = isExpanded ? 'Collapse card' : 'Expand card';
+function renderGroupCardToggle({ card, cardStateKey, controlsId, heading, isExpanded, tabList, collapsible = true }) {
+  const control = document.createElement(collapsible ? 'button' : 'div');
+  control.className = `group-card-toggle${collapsible ? '' : ' is-static'}`;
+
+  if (!collapsible) {
+    control.append(heading);
+    return control;
+  }
+
+  control.type = 'button';
+  control.setAttribute('aria-expanded', String(isExpanded));
+  control.setAttribute('aria-controls', controlsId);
+  control.title = isExpanded ? 'Collapse card' : 'Expand card';
 
   const icon = createIcon('chevron');
   icon.classList.add('group-toggle-icon');
-  button.append(heading, icon);
+  control.append(heading, icon);
 
-  button.addEventListener('click', () => {
-    const nextExpanded = button.getAttribute('aria-expanded') !== 'true';
-    button.setAttribute('aria-expanded', String(nextExpanded));
-    button.title = nextExpanded ? 'Collapse card' : 'Expand card';
+  control.addEventListener('click', () => {
+    const nextExpanded = control.getAttribute('aria-expanded') !== 'true';
+    control.setAttribute('aria-expanded', String(nextExpanded));
+    control.title = nextExpanded ? 'Collapse card' : 'Expand card';
     card.classList.toggle('is-expanded', nextExpanded);
     tabList.hidden = !nextExpanded;
 
@@ -1363,7 +1373,7 @@ function renderGroupCardToggle({ card, cardStateKey, controlsId, heading, isExpa
     schedulePackedLayout();
   });
 
-  return button;
+  return control;
 }
 
 function schedulePackedLayout() {

@@ -32,6 +32,7 @@
   - single-line truncation with full values available on hover
 - Uses compact icon buttons for row and card actions, with accessible labels and native tooltips.
 - Uses a compact three-zone tab row: title/URL/last-seen in the main lane, page description plus right-aligned metadata below, and a vertical action rail on the far right.
+- Single-tab groups open directly without an extra collapse interaction.
 - Reads a short local description from accessible HTTP(S) tabs, falling back from standard metadata to visible article/main/body text; pages that block script access show a stable fallback.
 - Uses a locally generated Lucide subset for consistent 24px line geometry without a CDN or runtime package dependency.
 - Shows a favicon slot on each domain card, resolves page icons through Chrome's internal `_favicon` service, and falls back to a stable placeholder if the icon is missing.

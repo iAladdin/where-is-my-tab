@@ -54,7 +54,7 @@ This extension helps users find, reopen, organize, and review their existing Chr
 ## Assets Prepared In This Repo
 
 - Upload package:
-  `release/chrome-web-store/where-is-my-tab-0.3.6-chrome-web-store.zip`
+  `release/chrome-web-store/where-is-my-tab-0.3.7-chrome-web-store.zip`
 - Extension icons:
   `assets/icons/icon16.png`
   `assets/icons/icon48.png`

@@ -634,9 +634,19 @@ function renderOpenGroups(profile, query, trackedItemsByTabId) {
     return renderSectionEmpty(buildOpenGroupEmptyMessage(query));
   }
 
-  return renderGroupedCardSections(sections, (group, index) =>
-    renderOpenGroupCard(group, trackedItemsByTabId, index, state.openGroupView)
-  );
+  return renderGroupedCardSections(sections, (group, index) => {
+    if (group.tabs.length === 1) {
+      const tab = group.tabs[0];
+      const row = renderOpenTabRow(tab, trackedItemsByTabId.get(tab.id) ?? null, {
+        groupLabel: group.label
+      });
+      row.classList.add('masonry-item');
+      row.dataset.cardOrder = String(index);
+      return row;
+    }
+
+    return renderOpenGroupCard(group, trackedItemsByTabId, index, state.openGroupView);
+  });
 }
 
 function renderLaterGroups(laterGroups, query) {
@@ -653,7 +663,16 @@ function renderLaterGroups(laterGroups, query) {
     timestampKey: 'lastTouchedAt'
   });
 
-  return renderGroupedCardSections(sections, (group, index) => renderLaterGroupCard(group, index));
+  return renderGroupedCardSections(sections, (group, index) => {
+    if (group.items.length === 1) {
+      const row = renderLaterItemRow(group.items[0]);
+      row.classList.add('masonry-item');
+      row.dataset.cardOrder = String(index);
+      return row;
+    }
+
+    return renderLaterGroupCard(group, index);
+  });
 }
 
 function renderGroupedCardSections(sections, renderCard) {
@@ -1243,13 +1262,12 @@ function createDebugListItem(text) {
 
 function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
   const card = document.createElement('article');
-  card.className = 'group-card';
+  card.className = 'group-card masonry-item';
   card.dataset.cardOrder = String(order);
 
   const cardStateKey = `open:${view}:${group.key}`;
   const tabListId = `open-card-tabs-${order}`;
-  const isSingleTabGroup = group.tabs.length === 1;
-  const isExpanded = isSingleTabGroup || state.expandedCards.has(cardStateKey);
+  const isExpanded = state.expandedCards.has(cardStateKey);
 
   const header = document.createElement('header');
   header.className = 'group-card-header';
@@ -1271,8 +1289,7 @@ function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
         buildGroupFaviconPageUrl(group, view)
       ),
       isExpanded,
-      tabList,
-      collapsible: !isSingleTabGroup
+      tabList
     }),
     renderOpenGroupActions(group, view)
   );
@@ -1296,13 +1313,12 @@ function renderOpenGroupCard(group, trackedItemsByTabId, order, view) {
 
 function renderLaterGroupCard(group, order) {
   const card = document.createElement('article');
-  card.className = 'group-card is-later-group';
+  card.className = 'group-card is-later-group masonry-item';
   card.dataset.cardOrder = String(order);
 
   const cardStateKey = `later:${group.key}`;
   const tabListId = `later-card-tabs-${order}`;
-  const isSingleTabGroup = group.items.length === 1;
-  const isExpanded = isSingleTabGroup || state.expandedCards.has(cardStateKey);
+  const isExpanded = state.expandedCards.has(cardStateKey);
 
   const header = document.createElement('header');
   header.className = 'group-card-header';
@@ -1324,8 +1340,7 @@ function renderLaterGroupCard(group, order) {
         group.items[0]?.url ?? ''
       ),
       isExpanded,
-      tabList,
-      collapsible: !isSingleTabGroup
+      tabList
     }),
     renderLaterGroupStats(group)
   );
@@ -1339,15 +1354,9 @@ function renderLaterGroupCard(group, order) {
   return card;
 }
 
-function renderGroupCardToggle({ card, cardStateKey, controlsId, heading, isExpanded, tabList, collapsible = true }) {
-  const control = document.createElement(collapsible ? 'button' : 'div');
-  control.className = `group-card-toggle${collapsible ? '' : ' is-static'}`;
-
-  if (!collapsible) {
-    control.append(heading);
-    return control;
-  }
-
+function renderGroupCardToggle({ card, cardStateKey, controlsId, heading, isExpanded, tabList }) {
+  const control = document.createElement('button');
+  control.className = 'group-card-toggle';
   control.type = 'button';
   control.setAttribute('aria-expanded', String(isExpanded));
   control.setAttribute('aria-controls', controlsId);
@@ -1390,7 +1399,7 @@ function rebalancePackedGrids() {
 }
 
 function rebalancePackedGrid(grid) {
-  const cards = Array.from(grid.querySelectorAll('.group-card')).sort(
+  const cards = Array.from(grid.querySelectorAll('.masonry-item')).sort(
     (left, right) => Number(left.dataset.cardOrder ?? 0) - Number(right.dataset.cardOrder ?? 0)
   );
 
